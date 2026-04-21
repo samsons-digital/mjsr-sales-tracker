@@ -1,0 +1,1562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MJSR Activity Sales Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:   #0f2340; --navy2:  #1a3a5c; --navy3:  #254d7a;
+    --gold:   #c9922a; --gold2:  #e8b04a; --gold3:  #f5d080;
+    --cream:  #f5f1ea; --white:  #ffffff;
+    --text:   #1a2535; --muted:  #6b7a8d; --border: #ddd7cc;
+    --green:  #2d7a4e; --green2: #3daa6e;
+    --red:    #c0392b; --amber:  #d97706;
+    --shadow: 0 2px 16px rgba(15,35,64,0.10);
+    --shadow2: 0 4px 32px rgba(15,35,64,0.16);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--text); min-height: 100vh; }
+
+  .nav { background: var(--navy); padding: 0 32px; display: flex; align-items: center; justify-content: space-between; height: 64px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(0,0,0,0.3); }
+  .nav-brand { display: flex; align-items: center; gap: 12px; }
+  .nav-logo  { width: 36px; height: 36px; background: var(--gold); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: 'DM Serif Display', serif; color: var(--navy); font-size: 18px; }
+  .nav-title { color: var(--white); font-family: 'DM Serif Display', serif; font-size: 18px; }
+  .nav-sub   { color: var(--gold3); font-size: 11px; font-weight: 300; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 1px; }
+  .nav-tabs  { display: flex; gap: 2px; }
+  .nav-tab   { color: rgba(255,255,255,0.65); padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; border: none; background: none; }
+  .nav-tab:hover  { color: white; background: rgba(255,255,255,0.08); }
+  .nav-tab.active { color: var(--gold2); background: rgba(201,146,42,0.15); }
+
+  .main { max-width: 1280px; margin: 0 auto; padding: 32px 24px; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .page-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 28px; }
+  .page-title  { font-family: 'DM Serif Display', serif; font-size: 28px; color: var(--navy); }
+  .page-sub    { color: var(--muted); font-size: 14px; margin-top: 4px; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .tile { background: var(--white); border-radius: 12px; padding: 20px 24px; box-shadow: var(--shadow); border-left: 4px solid var(--border); transition: transform 0.15s; }
+  .tile:hover { transform: translateY(-2px); }
+  .tile.gold  { border-left-color: var(--gold); }
+  .tile.navy  { border-left-color: var(--navy3); }
+  .tile.green { border-left-color: var(--green2); }
+  .tile.red   { border-left-color: var(--red); }
+  .tile-label { font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+  .tile-value { font-family: 'DM Serif Display', serif; font-size: 32px; color: var(--navy); line-height: 1; }
+  .tile-sub   { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .tile-delta { font-size: 12px; font-weight: 600; margin-top: 4px; }
+  .tile-delta.up   { color: var(--green2); }
+  .tile-delta.down { color: var(--red); }
+  .tile-delta.flat { color: var(--muted); }
+
+  .card { background: var(--white); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; margin-bottom: 24px; }
+  .card-header { padding: 18px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .card-title { font-weight: 600; font-size: 15px; color: var(--navy); }
+  .card-badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 600; white-space: nowrap; }
+  .badge-gold  { background: #fef3dc; color: var(--gold); }
+  .badge-navy  { background: #e8eef5; color: var(--navy2); }
+  .badge-green { background: #e3f5ec; color: var(--green); }
+  .badge-amber { background: #fef9e7; color: var(--amber); border: 1px solid #fde68a; }
+  .badge-red   { background: #fde8e8; color: var(--red); }
+  .card-body { padding: 24px; }
+
+  .chart-row      { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+  .chart-row.wide { grid-template-columns: 2fr 1fr; }
+  @media(max-width: 900px) { .chart-row, .chart-row.wide { grid-template-columns: 1fr; } }
+  .chart-wrap { position: relative; height: 260px; }
+
+  .tab-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tab-btn { padding: 7px 18px; border-radius: 20px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1.5px solid var(--border); background: var(--white); color: var(--muted); transition: all 0.18s; }
+  .tab-btn.active { background: var(--navy); color: var(--white); border-color: var(--navy); }
+
+  .activity-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+  .act-card { background: var(--cream); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border); }
+  .act-name { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .act-val  { font-family: 'DM Serif Display', serif; font-size: 24px; color: var(--navy); margin-top: 4px; }
+  .act-bar  { height: 3px; background: var(--border); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+  .act-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+
+  /* Forms */
+  .form-group { margin-bottom: 0; }
+  .form-label { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px; display: block; }
+  .form-input { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--text); background: var(--white); transition: border-color 0.15s; }
+  .form-input:focus { outline: none; border-color: var(--navy3); }
+  .submit-meta { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media(max-width: 700px) { .submit-meta { grid-template-columns: 1fr 1fr; } }
+
+  .act-inputs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .act-input-card { background: var(--cream); border: 1.5px solid var(--border); border-radius: 12px; padding: 16px; transition: border-color 0.2s, box-shadow 0.2s; }
+  .act-input-card:focus-within { border-color: var(--navy3); box-shadow: 0 0 0 3px rgba(37,77,122,0.1); }
+  .act-input-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .act-input-name   { font-weight: 600; font-size: 14px; color: var(--navy); }
+  .act-input-price  { font-size: 11px; color: var(--gold); font-weight: 600; background: #fef3dc; padding: 2px 8px; border-radius: 10px; }
+  .act-count-label  { font-size: 10px; font-weight: 600; color: var(--muted); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 5px; }
+  .act-count-input  { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 8px; font-family: 'DM Serif Display', serif; font-size: 26px; color: var(--navy); background: var(--white); text-align: center; transition: border-color 0.15s; }
+  .act-count-input:focus { outline: none; border-color: var(--navy3); }
+  .act-revenue-line { margin-top: 8px; padding: 7px 10px; background: rgba(201,146,42,0.08); border-radius: 6px; font-size: 13px; color: var(--gold); font-weight: 600; text-align: center; min-height: 30px; transition: all 0.2s; }
+  .act-revenue-line.has-value { background: rgba(201,146,42,0.15); }
+
+  .totals-preview { background: var(--navy); border-radius: 12px; padding: 18px 24px; display: flex; gap: 40px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+  .tp-item { color: rgba(255,255,255,0.6); font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+  .tp-val  { color: var(--white); font-family: 'DM Serif Display', serif; font-size: 26px; margin-top: 3px; }
+  .tp-val.gold { color: var(--gold2); }
+
+  .dup-warning { background: #fffbeb; border: 1.5px solid #fbbf24; border-radius: 10px; padding: 12px 18px; margin-bottom: 20px; display: none; font-size: 13px; color: var(--amber); font-weight: 500; align-items: center; gap: 10px; }
+  .dup-warning.show { display: flex; }
+
+  .btn { padding: 12px 28px; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+  .btn-sm { padding: 8px 18px; font-size: 13px; }
+  .btn-primary { background: var(--navy); color: var(--white); }
+  .btn-primary:hover { background: var(--navy3); }
+  .btn-primary:disabled { background: var(--muted); cursor: not-allowed; }
+  .btn-gold { background: var(--gold); color: var(--white); }
+  .btn-gold:hover { background: var(--gold2); color: var(--navy); }
+  .btn-green { background: var(--green); color: var(--white); }
+  .btn-green:hover { background: var(--green2); }
+  .btn-red { background: var(--red); color: var(--white); }
+  .btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--muted); }
+  .btn-outline:hover { border-color: var(--navy); color: var(--navy); }
+
+  .log-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .log-table th { background: var(--navy); color: var(--white); padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap; }
+  .log-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .log-table tr:hover td { background: rgba(15,35,64,0.04); }
+  .badge-we   { background: #fef3dc; color: var(--gold); padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .badge-wd   { background: #e8eef5; color: var(--navy2); padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .badge-hist { background: #e3f5ec; color: var(--green); padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+
+  .price-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .price-table th { background: var(--navy); color: var(--white); padding: 10px 16px; text-align: left; }
+  .price-table td { padding: 10px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .price-table input { width: 130px; padding: 7px 10px; border: 1.5px solid var(--border); border-radius: 6px; font-size: 14px; font-family: 'DM Sans', sans-serif; }
+
+  /* ─── IMPORT PAGE SPECIFIC ─────────────────────── */
+  .import-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .import-step { background: var(--white); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); border-top: 3px solid var(--border); }
+  .import-step.active-step { border-top-color: var(--gold); }
+  .import-step.done-step   { border-top-color: var(--green2); }
+  .step-num  { width: 28px; height: 28px; border-radius: 50%; background: var(--navy); color: var(--white); font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+  .step-title { font-weight: 600; font-size: 14px; color: var(--navy); margin-bottom: 4px; }
+  .step-desc  { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  .import-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 32px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--cream); }
+  .import-zone:hover, .import-zone.dragover { border-color: var(--navy3); background: rgba(37,77,122,0.04); }
+  .import-zone-icon  { font-size: 40px; margin-bottom: 12px; }
+  .import-zone-title { font-size: 16px; font-weight: 600; color: var(--navy); margin-bottom: 6px; }
+  .import-zone-sub   { font-size: 13px; color: var(--muted); }
+  #csv-file-input    { display: none; }
+
+  .import-preview-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .import-preview-table th { background: var(--navy); color: var(--white); padding: 8px 12px; text-align: left; font-size: 11px; }
+  .import-preview-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  .import-preview-table tr.error-row td { background: #fde8e8; color: var(--red); }
+  .import-preview-table tr.dup-row td   { background: #fef9e7; }
+  .import-preview-table tr.ok-row td    { }
+
+  .import-result-box { border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .import-result-box.success { background: #e3f5ec; border: 1px solid #a7f0c7; }
+  .import-result-box.warning { background: #fef9e7; border: 1px solid #fde68a; }
+  .import-result-box.error   { background: #fde8e8; border: 1px solid #fca5a5; }
+  .result-stat { display: inline-block; margin-right: 28px; }
+  .result-stat-val   { font-family: 'DM Serif Display', serif; font-size: 28px; color: var(--navy); }
+  .result-stat-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-top: 2px; }
+
+  .data-status-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .data-status-card { background: var(--cream); border: 1px solid var(--border); border-radius: 10px; padding: 14px; text-align: center; }
+  .ds-year  { font-size: 22px; font-weight: 700; color: var(--navy); font-family: 'DM Serif Display', serif; }
+  .ds-count { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .ds-bar   { height: 3px; background: var(--border); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+  .ds-bar-fill { height: 100%; background: var(--navy3); border-radius: 2px; }
+
+  .textarea-code { width: 100%; padding: 14px; border: 1.5px solid var(--border); border-radius: 8px; font-family: 'Courier New', monospace; font-size: 12px; color: var(--text); background: #f8f7f4; resize: vertical; min-height: 200px; }
+  .textarea-code:focus { outline: none; border-color: var(--navy3); }
+
+  .alert { border-radius: 10px; padding: 14px 18px; font-size: 13px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px; }
+  .alert-info   { background: #e8eef5; color: var(--navy2); border: 1px solid #c3d4e8; }
+  .alert-warn   { background: #fffbeb; color: var(--amber); border: 1px solid #fde68a; }
+  .alert-danger { background: #fde8e8; color: var(--red); border: 1px solid #fca5a5; }
+
+  .year-tab-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+  .year-tab { padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); background: var(--white); color: var(--muted); transition: all 0.18s; }
+  .year-tab.active { background: var(--navy); color: var(--white); border-color: var(--navy); }
+  .year-tab.has-data { border-color: var(--navy3); color: var(--navy3); }
+
+  .toast { position: fixed; bottom: 28px; right: 28px; background: var(--navy); color: var(--white); padding: 14px 22px; border-radius: 10px; box-shadow: var(--shadow2); font-size: 14px; transform: translateY(80px); opacity: 0; transition: all 0.3s; z-index: 999; max-width: 380px; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { border-left: 4px solid var(--green2); }
+  .toast.error   { border-left: 4px solid var(--red); }
+
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+  .spinner-dark { border: 2px solid rgba(15,35,64,0.2); border-top-color: var(--navy); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .no-data { text-align: center; color: var(--muted); padding: 40px; font-size: 14px; }
+
+  progress { width: 100%; height: 8px; border-radius: 4px; appearance: none; }
+  progress::-webkit-progress-bar   { background: var(--border); border-radius: 4px; }
+  progress::-webkit-progress-value { background: var(--gold); border-radius: 4px; }
+
+  /* ─── KPI TILES ──────────────────────────── */
+  .kpi-tile {
+    background: var(--white);
+    border-radius: 12px;
+    padding: 16px 18px;
+    box-shadow: var(--shadow);
+    border-top: 3px solid var(--border);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .kpi-tile:hover { transform: translateY(-2px); box-shadow: var(--shadow2); }
+  .kpi-tile.footfall { border-top-color: var(--navy3); }
+  .kpi-tile.activity { border-top-color: var(--green2); }
+  .kpi-tile.revenue  { border-top-color: var(--gold); }
+
+  .kpi-tile-label {
+    font-size: 11px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.8px;
+    margin-bottom: 8px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .kpi-tile-value {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px; color: var(--navy);
+    line-height: 1; margin-bottom: 8px;
+  }
+  .kpi-tile-value.no-data { font-size: 16px; color: var(--muted); font-family: 'DM Sans', sans-serif; }
+
+  .kpi-delta-pill {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 12px; font-weight: 600;
+    padding: 3px 8px; border-radius: 20px;
+    margin-bottom: 4px;
+  }
+  .kpi-delta-pill.up   { background: #e3f5ec; color: var(--green); }
+  .kpi-delta-pill.down { background: #fde8e8; color: var(--red); }
+  .kpi-delta-pill.flat { background: var(--cream); color: var(--muted); }
+
+  .kpi-vs-label { font-size: 11px; color: var(--muted); }
+
+  .kpi-act-bar-bg { height: 3px; background: var(--border); border-radius: 2px; margin: 8px 0 6px; overflow: hidden; }
+  .kpi-act-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+
+  .period-pill {
+    padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 500;
+    cursor: pointer; border: 1.5px solid var(--border);
+    background: var(--white); color: var(--muted); transition: all 0.18s;
+    white-space: nowrap;
+  }
+  .period-pill:hover { border-color: var(--navy3); color: var(--navy3); }
+  .period-pill.active { background: var(--navy); color: var(--white); border-color: var(--navy); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">
+    <div class="nav-logo">M</div>
+    <div>
+      <div class="nav-title">MJSR Sales Tracker</div>
+      <div class="nav-sub">Activity &amp; Revenue Intelligence</div>
+    </div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('dashboard',this)">Dashboard</button>
+    <button class="nav-tab"        onclick="showPage('submit',this)">Submit Daily</button>
+    <button class="nav-tab"        onclick="showPage('trends',this)">Trends</button>
+    <button class="nav-tab"        onclick="showPage('log',this)">Log</button>
+    <button class="nav-tab"        onclick="showPage('import',this)">📥 Import History</button>
+    <button class="nav-tab"        onclick="showPage('admin',this)">Admin</button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<div class="main">
+
+<!-- ══════════════════════════════════════════ DASHBOARD -->
+<div class="page active" id="page-dashboard">
+
+  <!-- Header row -->
+  <div class="page-header">
+    <div>
+      <div class="page-title">Dashboard</div>
+      <div class="page-sub" id="dash-subtitle">Loading...</div>
+    </div>
+    <button class="btn btn-outline" onclick="loadDashboard()">↻ Refresh</button>
+  </div>
+
+  <!-- Period selector pills -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-body" style="padding:16px 20px">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+        <span style="font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.8px;">Comparison Period</span>
+        <span style="font-size:12px; color:var(--muted)" id="dash-vs-label">vs equivalent prior period</span>
+      </div>
+      <div id="period-pill-row" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
+    </div>
+  </div>
+
+  <!-- GROUP 1 — FOOTFALL -->
+  <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+    <div style="width:30px;height:30px;border-radius:8px;background:#e8eef5;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">👥</div>
+    <div>
+      <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;">Group 1 — Customer Footfall</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:1px" id="g1-period-label">Total visitor volume across all activities</div>
+    </div>
+    <div style="flex:1;height:1px;background:var(--border);margin-left:8px;"></div>
+  </div>
+  <div id="footfall-tiles" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:12px;margin-bottom:28px;"></div>
+
+  <!-- GROUP 2 — ACTIVITIES -->
+  <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+    <div style="width:30px;height:30px;border-radius:8px;background:#e3f5ec;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">📊</div>
+    <div>
+      <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;">Group 2 — Activity Performance</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:1px" id="g2-period-label">Visitor counts and revenue per activity</div>
+    </div>
+    <div style="flex:1;height:1px;background:var(--border);margin-left:8px;"></div>
+  </div>
+  <div id="activity-kpi-tiles" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:12px;margin-bottom:28px;"></div>
+
+  <!-- Trend chart (below KPIs) -->
+  <div class="chart-row wide">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Visitor Trend</span>
+        <div class="tab-row" style="margin:0">
+          <button class="tab-btn active" onclick="setDailyRange(30,this)">30 Days</button>
+          <button class="tab-btn" onclick="setDailyRange(60,this)">60 Days</button>
+          <button class="tab-btn" onclick="setDailyRange(90,this)">90 Days</button>
+        </div>
+      </div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="chartDailyVisitors"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Activity Mix</span><span class="card-badge badge-gold" id="mix-label">Selected Period</span></div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="chartActivityMix"></canvas></div></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════ SUBMIT -->
+<div class="page" id="page-submit">
+  <div class="page-header">
+    <div><div class="page-title">Submit Daily Activity Numbers</div><div class="page-sub">Visitor counts — revenue calculated automatically from current prices</div></div>
+  </div>
+  <div class="dup-warning" id="dup-warning">
+    <span style="font-size:18px">⚠️</span>
+    <div><strong>Entry already exists for this date.</strong> Submitting will overwrite the existing record.</div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title">Submission Details</span></div>
+    <div class="card-body">
+      <div class="submit-meta">
+        <div class="form-group"><label class="form-label">Date</label><input type="date" class="form-input" id="sub-date"></div>
+        <div class="form-group"><label class="form-label">Submitted By</label><input type="text" class="form-input" id="sub-name" placeholder="Your name"></div>
+        <div class="form-group"><label class="form-label">Notes (Optional)</label><input type="text" class="form-input" id="sub-notes" placeholder="e.g. Promo weekend"></div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title">Visitor Counts per Activity</span><span class="card-badge badge-amber" id="sub-daytype-badge">Loading prices...</span></div>
+    <div class="card-body"><div class="act-inputs-grid" id="activity-inputs-grid"></div></div>
+  </div>
+  <div class="totals-preview">
+    <div class="tp-item">Total Visitors<div class="tp-val" id="sub-total-vis">0</div></div>
+    <div class="tp-item">Auto-Calculated Revenue<div class="tp-val gold" id="sub-total-rev">PKR 0</div></div>
+    <div class="tp-item">Day Type<div class="tp-val" id="sub-day-type">—</div></div>
+    <div style="margin-left:auto; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <button class="btn btn-outline" onclick="clearSubmitForm()" style="color:rgba(255,255,255,0.6); border-color:rgba(255,255,255,0.25);">Clear</button>
+      <button class="btn btn-gold" id="submit-btn" onclick="submitDaily()">Submit Daily Report</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ TRENDS -->
+<div class="page" id="page-trends">
+  <div class="page-header">
+    <div><div class="page-title">Trends &amp; Analysis</div><div class="page-sub">Historical footfall, revenue growth, and activity composition</div></div>
+  </div>
+
+  <!-- Year filter -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Year Filter</span><span class="card-badge badge-navy" id="trend-year-label">All Years</span></div>
+    <div class="card-body" style="padding:16px 24px">
+      <div class="year-tab-row" id="year-filter-tabs">
+        <button class="year-tab active" onclick="setTrendYear('all',this)">All Years</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-row">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Weekly Visitor Totals</span><span class="card-badge badge-navy">Last 52 Weeks</span></div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="chartWeekly"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Monthly Visitors &amp; Revenue</span><span class="card-badge badge-gold">All Months</span></div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="chartMonthly"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- Year-on-year comparison -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Year-on-Year Comparison</span><span class="card-badge badge-green">Multi-Year</span></div>
+    <div class="card-body"><div class="chart-wrap" style="height:300px"><canvas id="chartYoY"></canvas></div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Activity Composition Over Time</span>
+      <div class="tab-row" style="margin:0">
+        <button class="tab-btn active" onclick="setTrendView('weekly',this)">Weekly</button>
+        <button class="tab-btn" onclick="setTrendView('monthly',this)">Monthly</button>
+      </div>
+    </div>
+    <div class="card-body"><div class="chart-wrap" style="height:320px"><canvas id="chartStacked"></canvas></div></div>
+  </div>
+
+  <div class="chart-row">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Weekday vs Weekend Average</span></div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="chartWdWe"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Top Activities (Cumulative)</span></div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="chartTopAct"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ LOG -->
+<div class="page" id="page-log">
+  <div class="page-header">
+    <div><div class="page-title">Submission Log</div><div class="page-sub">Last 100 entries — includes historical imports</div></div>
+    <button class="btn btn-outline" onclick="loadLog()">↻ Refresh</button>
+  </div>
+  <div class="card">
+    <div class="card-body" style="overflow-x:auto">
+      <table class="log-table">
+        <thead><tr>
+          <th>Date</th><th>Source</th><th>Day Type</th><th>Submitted By</th>
+          <th>Total Visitors</th><th>Total Revenue (PKR)</th>
+          <th>Chairlift</th><th>Zipline</th><th>Giant Swing</th><th>Slingshot</th>
+          <th>Skiing</th><th>Climbing Wall</th><th>Leap of Faith</th><th>Ferris Wheel</th>
+          <th>Notes</th>
+        </tr></thead>
+        <tbody id="log-body"><tr><td colspan="15" class="no-data">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ IMPORT PAGE -->
+<div class="page" id="page-import">
+  <div class="page-header">
+    <div><div class="page-title">Import Historical Data</div><div class="page-sub">Upload years of historical activity data to unlock multi-year trend analysis</div></div>
+  </div>
+
+  <!-- Current data status -->
+  <div class="card" id="import-status-card">
+    <div class="card-header"><span class="card-title">Current Data in System</span><span class="card-badge badge-navy" id="status-badge">Loading...</span></div>
+    <div class="card-body">
+      <div class="data-status-grid" id="data-status-grid"><div class="no-data">Loading status...</div></div>
+      <div style="font-size:13px; color:var(--muted)" id="status-summary">—</div>
+    </div>
+  </div>
+
+  <!-- Step guide -->
+  <div class="import-steps">
+    <div class="import-step">
+      <div class="step-num">1</div>
+      <div class="step-title">Download Template</div>
+      <div class="step-desc">Download the CSV template. Each row = one operating day. Fill in visitor counts per activity.</div>
+      <div style="margin-top:12px"><button class="btn btn-outline btn-sm" onclick="downloadTemplate()">⬇ Download CSV Template</button></div>
+    </div>
+    <div class="import-step">
+      <div class="step-num">2</div>
+      <div class="step-title">Fill Your Data</div>
+      <div class="step-desc">Date format: YYYY-MM-DD. Leave revenue columns blank if you only have counts — prices will be left as 0.</div>
+    </div>
+    <div class="import-step">
+      <div class="step-num">3</div>
+      <div class="step-title">Upload &amp; Validate</div>
+      <div class="step-desc">Drop your CSV here. The system validates all rows, flags errors, and shows a preview before writing anything.</div>
+    </div>
+    <div class="import-step">
+      <div class="step-num">4</div>
+      <div class="step-title">Confirm Import</div>
+      <div class="step-desc">Review the validation report, choose how to handle duplicate dates, then confirm to write all rows.</div>
+    </div>
+  </div>
+
+  <!-- Method tabs -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Import Method</span>
+      <div class="tab-row" style="margin:0">
+        <button class="tab-btn active" onclick="setImportMethod('csv',this)">CSV File Upload</button>
+        <button class="tab-btn" onclick="setImportMethod('paste',this)">Paste CSV Text</button>
+        <button class="tab-btn" onclick="setImportMethod('manual',this)">Manual Month Entry</button>
+      </div>
+    </div>
+
+    <!-- CSV Upload -->
+    <div class="card-body" id="import-method-csv">
+      <div class="import-zone" id="import-drop-zone" onclick="document.getElementById('csv-file-input').click()"
+        ondragover="event.preventDefault();this.classList.add('dragover')"
+        ondragleave="this.classList.remove('dragover')"
+        ondrop="handleFileDrop(event)">
+        <div class="import-zone-icon">📂</div>
+        <div class="import-zone-title">Drop CSV file here or click to browse</div>
+        <div class="import-zone-sub">Accepts .csv files — use the template above for correct column order</div>
+      </div>
+      <input type="file" id="csv-file-input" accept=".csv" onchange="handleFileSelect(event)">
+    </div>
+
+    <!-- Paste -->
+    <div class="card-body" id="import-method-paste" style="display:none">
+      <label class="form-label">Paste CSV content (including header row)</label>
+      <textarea class="textarea-code" id="csv-paste-area" placeholder="Date,Submitted By,Notes,Chairlift Count,Zipline Count,...&#10;2023-01-01,Historical,,120,28,..."></textarea>
+      <div style="margin-top:12px">
+        <button class="btn btn-primary" onclick="processPastedCSV()">Parse &amp; Validate</button>
+      </div>
+    </div>
+
+    <!-- Manual month entry -->
+    <div class="card-body" id="import-method-manual" style="display:none">
+      <div class="alert alert-info">
+        <span>ℹ️</span>
+        <span>For paper records with only monthly totals: enter total counts per activity for the month. The system will create a single summary entry dated the last day of that month.</span>
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom:20px;">
+        <div><label class="form-label">Year</label><input type="number" class="form-input" id="manual-year" placeholder="2022" min="2000" max="2030"></div>
+        <div><label class="form-label">Month</label>
+          <select class="form-input" id="manual-month">
+            <option value="">Select month</option>
+            <option value="01">January</option><option value="02">February</option><option value="03">March</option>
+            <option value="04">April</option><option value="05">May</option><option value="06">June</option>
+            <option value="07">July</option><option value="08">August</option><option value="09">September</option>
+            <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+          </select>
+        </div>
+        <div><label class="form-label">Notes</label><input type="text" class="form-input" id="manual-notes" placeholder="e.g. Summer season 2022"></div>
+      </div>
+      <div style="display:grid; grid-template-columns: repeat(auto-fill,minmax(200px,1fr)); gap:12px; margin-bottom:20px;">
+        ${['Chairlift','Zipline','Giant Swing','Slingshot','Skiing','Kids Climbing Wall','Leap of Faith','Ferris Wheel'].map(a =>
+          `<div><label class="form-label">${a}</label><input type="number" class="form-input" id="manual-${a.replace(/\s/g,'_')}" placeholder="0" min="0"></div>`
+        ).join('')}
+      </div>
+      <button class="btn btn-primary" onclick="addManualRow()">Add to Import Queue</button>
+      <div id="manual-queue" style="margin-top:16px"></div>
+      <div id="manual-queue-actions" style="display:none; margin-top:12px">
+        <button class="btn btn-gold" onclick="validateManualQueue()">Validate &amp; Preview Queue</button>
+        <button class="btn btn-outline" onclick="clearManualQueue()" style="margin-left:10px">Clear Queue</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Validation preview -->
+  <div id="import-validation-section" style="display:none">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Validation Report</span>
+        <span class="card-badge" id="validation-badge">Checking...</span>
+      </div>
+      <div class="card-body">
+        <div id="validation-summary" style="margin-bottom:16px">
+          <div class="result-stat"><span class="result-stat-val" id="vr-total">0</span><span class="result-stat-label">Total Rows</span></div>
+          <div class="result-stat"><span class="result-stat-val" id="vr-valid" style="color:var(--green2)">0</span><span class="result-stat-label">Valid</span></div>
+          <div class="result-stat"><span class="result-stat-val" id="vr-dup" style="color:var(--amber)">0</span><span class="result-stat-label">Duplicates</span></div>
+          <div class="result-stat"><span class="result-stat-val" id="vr-err" style="color:var(--red)">0</span><span class="result-stat-label">Errors</span></div>
+        </div>
+
+        <div id="validation-dup-note" style="display:none" class="alert alert-warn">
+          <span>⚠️</span>
+          <div>
+            <strong id="dup-count-msg"></strong> — these dates already exist in the system.<br>
+            <label style="display:flex; align-items:center; gap:8px; margin-top:8px; font-weight:600; cursor:pointer;">
+              <input type="checkbox" id="overwrite-toggle" style="width:16px;height:16px"> Overwrite existing entries with imported data
+            </label>
+          </div>
+        </div>
+
+        <div id="validation-error-note" style="display:none" class="alert alert-danger">
+          <span>❌</span>
+          <div><strong>Rows with errors will be skipped.</strong> Fix them in your CSV and re-upload, or proceed to import valid rows only.</div>
+        </div>
+
+        <!-- Preview table -->
+        <div style="overflow-x:auto; margin-bottom:20px">
+          <table class="import-preview-table">
+            <thead><tr><th>#</th><th>Date</th><th>Total Visitors</th><th>Total Revenue (PKR)</th><th>Status</th></tr></thead>
+            <tbody id="validation-preview-body"></tbody>
+          </table>
+        </div>
+
+        <div style="display:flex; gap:12px; align-items:center;">
+          <button class="btn btn-green" id="confirm-import-btn" onclick="confirmImport()">✓ Confirm Import</button>
+          <button class="btn btn-outline" onclick="cancelImport()">Cancel</button>
+          <span style="font-size:13px; color:var(--muted)" id="import-progress-label"></span>
+        </div>
+        <progress id="import-progress-bar" value="0" max="100" style="display:none; margin-top:12px"></progress>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import result -->
+  <div id="import-result-section" style="display:none">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Import Result</span><span class="card-badge badge-green">Complete</span></div>
+      <div class="card-body">
+        <div class="import-result-box success" id="import-result-box">
+          <div style="margin-bottom:16px">
+            <div class="result-stat"><span class="result-stat-val" id="ir-inserted">0</span><span class="result-stat-label">Inserted</span></div>
+            <div class="result-stat"><span class="result-stat-val" id="ir-overwritten">0</span><span class="result-stat-label">Overwritten</span></div>
+            <div class="result-stat"><span class="result-stat-val" id="ir-skipped">0</span><span class="result-stat-label">Skipped</span></div>
+            <div class="result-stat"><span class="result-stat-val" id="ir-errors">0</span><span class="result-stat-label">Errors</span></div>
+          </div>
+          <div style="font-size:14px; color:var(--muted)" id="ir-message">—</div>
+        </div>
+        <div style="display:flex; gap:12px; margin-top:8px">
+          <button class="btn btn-primary" onclick="showPage('trends', document.querySelector('.nav-tab:nth-child(3)'))">View Trends →</button>
+          <button class="btn btn-outline" onclick="resetImportPage()">Import More Data</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ ADMIN -->
+<div class="page" id="page-admin">
+  <div class="page-header">
+    <div><div class="page-title">Admin Settings</div><div class="page-sub">Prices, system bootstrap, and data management</div></div>
+  </div>
+  <div class="card" id="admin-lock">
+    <div class="card-body" style="max-width:320px; margin:0 auto; text-align:center; padding:40px;">
+      <div style="font-size:40px; margin-bottom:16px;">🔐</div>
+      <div style="font-weight:600; font-size:16px; margin-bottom:12px;">Admin PIN Required</div>
+      <input type="password" class="form-input" id="admin-pin-input" placeholder="Enter PIN"
+        style="text-align:center; letter-spacing:6px; font-size:22px; margin-bottom:12px;"
+        onkeydown="if(event.key==='Enter') unlockAdmin()">
+      <button class="btn btn-primary" onclick="unlockAdmin()" style="width:100%">Unlock</button>
+    </div>
+  </div>
+  <div id="admin-panel" style="display:none">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Activity Price Manager</span><span class="card-badge badge-gold">Admin</span></div>
+      <div class="card-body" style="overflow-x:auto">
+        <p style="font-size:13px; color:var(--muted); margin-bottom:16px; line-height:1.6;">Prices auto-calculate revenue on submission. <strong>Weekday</strong> = Mon–Fri; <strong>Weekend</strong> = Sat–Sun.</p>
+        <table class="price-table">
+          <thead><tr><th>Activity</th><th>Weekday Price (PKR)</th><th>Weekend Price (PKR)</th></tr></thead>
+          <tbody id="price-body"><tr><td colspan="3" class="no-data">Loading...</td></tr></tbody>
+        </table>
+        <div style="margin-top:16px; display:flex; gap:10px;">
+          <button class="btn btn-gold" onclick="savePrices()">Save Prices</button>
+          <button class="btn btn-outline" onclick="loadPrices()">Reload</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">System Tools</span></div>
+      <div class="card-body" style="display:flex; flex-direction:column; gap:16px;">
+        <div>
+          <div style="font-weight:600; margin-bottom:6px;">Bootstrap Sheets</div>
+          <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">Initialises all tabs and headers. Safe to re-run.</div>
+          <button class="btn btn-outline btn-sm" onclick="runBootstrap()">Run bootstrapSheets()</button>
+        </div>
+        <div>
+          <div style="font-weight:600; margin-bottom:6px;">Rebuild Summaries</div>
+          <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">Recalculates Weekly and Monthly summary tabs from Daily_Summary. Run after any manual sheet edits.</div>
+          <button class="btn btn-outline btn-sm" onclick="runRebuild()">Rebuild Weekly &amp; Monthly</button>
+        </div>
+        <div>
+          <div style="font-weight:600; margin-bottom:6px; color:var(--red);">Clear All Data</div>
+          <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">Deletes all data rows from all tabs. Headers are preserved. This cannot be undone.</div>
+          <button class="btn btn-red btn-sm" onclick="clearAllDataConfirm()">Clear All Data</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbz9FfSujFbcfCVcNck-if-e59mDxX0Z7sOYWB23CXaBucA7XofniCUC2ciy6x80a6y7iA/exec';
+
+const ACTIVITIES = [
+  'Chairlift','Zipline','Giant Swing','Slingshot',
+  'Skiing','Kids Climbing Wall','Leap of Faith','Ferris Wheel'
+];
+const DEFAULT_PRICES = {
+  'Chairlift':1900,'Zipline':5000,'Giant Swing':2500,'Slingshot':2000,
+  'Skiing':3000,'Kids Climbing Wall':800,'Leap of Faith':1200,'Ferris Wheel':600
+};
+const ACT_COLORS = ['#0f2340','#1a3a5c','#254d7a','#c9922a','#e8b04a','#2d7a4e','#3daa6e','#8e4dba'];
+
+let dashData       = null;
+let activePrices   = {...DEFAULT_PRICES};
+let currentActPeriod = 'today';
+let dailyRange     = 30;
+let currentTrendYear = 'all';
+let charts         = {};
+let pendingImportRows = [];
+let manualQueue    = [];
+
+// ─── NAV ─────────────────────────────────────────────────────
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (id==='dashboard' && !dashData) loadDashboard();
+  if (id==='trends'   && dashData)   buildTrendCharts();
+  if (id==='log')                    loadLog();
+  if (id==='submit')                 setupSubmitPage();
+  if (id==='import')                 loadImportStatus();
+}
+
+// ─── GAS FETCH ────────────────────────────────────────────────
+async function gasPost(payload) {
+  const res = await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)});
+  return res.json();
+}
+
+// ─── TOAST ───────────────────────────────────────────────────
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className=`toast show ${type}`;
+  setTimeout(()=>t.classList.remove('show'),4500);
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────
+const fmt  = n => Number(n||0).toLocaleString('en-PK');
+const fmtK = n => n>=1000000?(n/1000000).toFixed(1)+'M':n>=1000?(n/1000).toFixed(0)+'K':String(Math.round(n||0));
+const isWeekend = s => { const d=new Date(s+'T00:00:00'); return d.getDay()===0||d.getDay()===6; };
+function deltaStr(c,p) {
+  if(!p) return {txt:'No prior data',cls:'flat'};
+  const pct=((c-p)/p*100).toFixed(1);
+  return pct>0?{txt:`▲ ${pct}% vs yesterday`,cls:'up'}:pct<0?{txt:`▼ ${Math.abs(pct)}% vs yesterday`,cls:'down'}:{txt:'No change',cls:'flat'};
+}
+
+// ─── PERIOD DEFINITIONS ──────────────────────────────────────
+const PERIODS = [
+  { id:'today',       label:'Today',         vsLabel:'vs Yesterday',
+    curr: d => daysAgo(d) < 1,
+    prev: d => daysAgo(d) >= 1 && daysAgo(d) < 2 },
+  { id:'yesterday',   label:'Yesterday',     vsLabel:'vs Day Before',
+    curr: d => daysAgo(d) >= 1 && daysAgo(d) < 2,
+    prev: d => daysAgo(d) >= 2 && daysAgo(d) < 3 },
+  { id:'last_weekend',label:'Last Weekend',  vsLabel:'vs Prior Weekend',
+    curr: d => isWeekendDay(d) && daysAgo(d) <= 7,
+    prev: d => isWeekendDay(d) && daysAgo(d) > 7 && daysAgo(d) <= 14 },
+  { id:'last_week',   label:'Last 7 Days',   vsLabel:'vs Prior 7 Days',
+    curr: d => daysAgo(d) <= 7,
+    prev: d => daysAgo(d) > 7 && daysAgo(d) <= 14 },
+  { id:'last_month',  label:'Last 30 Days',  vsLabel:'vs Prior 30 Days',
+    curr: d => daysAgo(d) <= 30,
+    prev: d => daysAgo(d) > 30 && daysAgo(d) <= 60 },
+  { id:'last_6m',     label:'Last 6 Months', vsLabel:'vs Prior 6 Months',
+    curr: d => daysAgo(d) <= 183,
+    prev: d => daysAgo(d) > 183 && daysAgo(d) <= 366 },
+  { id:'last_year',   label:'Last Year',     vsLabel:'vs Prior Year',
+    curr: d => daysAgo(d) <= 365,
+    prev: d => daysAgo(d) > 365 && daysAgo(d) <= 730 },
+];
+
+let selectedPeriod = 'today';
+
+function daysAgo(row) {
+  return (Date.now() - new Date(row.date+'T00:00:00').getTime()) / 86400000;
+}
+function isWeekendDay(row) {
+  const d = new Date(row.date+'T00:00:00').getDay();
+  return d === 0 || d === 6;
+}
+function aggDays(rows) {
+  const vis = rows.reduce((s,r)=>s+r.visitors,0);
+  const rev = rows.reduce((s,r)=>s+r.revenue,0);
+  const acts = {};
+  ACTIVITIES.forEach(a=>{ acts[a]=rows.reduce((s,r)=>s+(r.activities[a]||0),0); });
+  return { visitors:vis, revenue:rev, days:rows.length, acts };
+}
+function calcDelta(curr, prev) {
+  if (!prev || prev===0) return { cls:'flat', label:'—' };
+  const pct = (curr-prev)/prev*100;
+  const abs  = Math.abs(pct);
+  const str  = abs>=100 ? Math.round(abs)+'%' : abs.toFixed(1)+'%';
+  if (pct >  0.5) return { cls:'up',   label:'▲ '+str };
+  if (pct < -0.5) return { cls:'down', label:'▼ '+str };
+  return { cls:'flat', label:'±0%' };
+}
+
+// ─── DASHBOARD ───────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const data = await gasPost({action:'GET_DASHBOARD'});
+    if (!data.success) throw new Error(data.error);
+    dashData = data;
+  } catch(e) {
+    showToast('Running in demo mode — connect GAS URL to go live','error');
+    dashData = getDemoData();
+  }
+  buildYearFilterTabs();
+  renderDashboard();
+}
+
+function renderDashboard() {
+  if (!dashData) return;
+  const all  = dashData.daily;
+  const p    = PERIODS.find(x=>x.id===selectedPeriod);
+  const curr = all.filter(r=>p.curr(r));
+  const prev = all.filter(r=>p.prev(r));
+  const cAgg = aggDays(curr);
+  const pAgg = aggDays(prev);
+
+  const subEl = document.getElementById('dash-subtitle');
+  if (subEl) subEl.textContent = `${p.label} — ${fmt(cAgg.visitors)} visitors, PKR ${fmtK(cAgg.revenue)} revenue (${cAgg.days} day${cAgg.days===1?'':'s'})`;
+  const g1El = document.getElementById('g1-period-label');
+  if (g1El) g1El.textContent = `${p.label} — ${p.vsLabel}`;
+  const g2El = document.getElementById('g2-period-label');
+  if (g2El) g2El.textContent = `${p.label} — ${p.vsLabel}`;
+
+  renderPeriodPills();
+  renderFootfallKPIs(cAgg, pAgg, curr, prev, p.vsLabel);
+  renderActivityKPIs(cAgg, pAgg, p.vsLabel);
+  buildDailyVisitorsChart(all, dailyRange);
+  buildActivityMixChart(cAgg);
+}
+
+function renderPeriodPills() {
+  const el = document.getElementById('period-pill-row');
+  if (!el) return;
+  el.innerHTML = PERIODS.map(p =>
+    `<button class="period-pill ${p.id===selectedPeriod?'active':''}"
+      onclick="selectPeriod('${p.id}')">${p.label}</button>`
+  ).join('');
+}
+
+function selectPeriod(id) {
+  selectedPeriod = id;
+  renderDashboard();
+}
+
+function renderFootfallKPIs(c, p, currRows, prevRows, vsLbl) {
+  const ACT_PRICES_LIST = [1900,5000,2500,2000,3000,800,1200,600];
+  const hasData = c.days > 0;
+  const hasPrev = p.days > 0;
+  const avgVisC = c.days ? Math.round(c.visitors/c.days) : 0;
+  const avgVisP = p.days ? Math.round(p.visitors/p.days) : 0;
+  const avgRevC = c.days ? Math.round(c.revenue/c.days)  : 0;
+  const avgRevP = p.days ? Math.round(p.revenue/p.days)  : 0;
+  const weC = currRows.filter(r=>isWeekendDay(r));
+  const weP = prevRows.filter(r=>isWeekendDay(r));
+  const wdC = currRows.filter(r=>!isWeekendDay(r));
+  const wdP = prevRows.filter(r=>!isWeekendDay(r));
+  const weVC=weC.reduce((s,r)=>s+r.visitors,0), weVP=weP.reduce((s,r)=>s+r.visitors,0);
+  const wdVC=wdC.reduce((s,r)=>s+r.visitors,0), wdVP=wdP.reduce((s,r)=>s+r.visitors,0);
+
+  const tiles = [
+    { label:'Total Visitors',     val:fmt(c.visitors),        d:calcDelta(c.visitors,p.visitors), acc:'footfall', sub:null },
+    { label:'Total Revenue (PKR)',val:'PKR '+fmtK(c.revenue), d:calcDelta(c.revenue,p.revenue),   acc:'revenue',  sub:null },
+    { label:'Operating Days',     val:String(c.days),         d:calcDelta(c.days,p.days),         acc:'footfall', sub:null },
+    { label:'Avg Daily Visitors', val:fmt(avgVisC),           d:calcDelta(avgVisC,avgVisP),       acc:'footfall', sub:null },
+    { label:'Avg Daily Revenue',  val:'PKR '+fmtK(avgRevC),   d:calcDelta(avgRevC,avgRevP),       acc:'revenue',  sub:null },
+    { label:'Weekend Visitors',   val:fmt(weVC),              d:calcDelta(weVC,weVP),             acc:'footfall', sub:weC.length+' days' },
+    { label:'Weekday Visitors',   val:fmt(wdVC),              d:calcDelta(wdVC,wdVP),             acc:'footfall', sub:wdC.length+' days' },
+  ];
+
+  const el = document.getElementById('footfall-tiles');
+  if (!el) return;
+  el.innerHTML = tiles.map(t => `
+    <div class="kpi-tile ${t.acc}">
+      <div class="kpi-tile-label">${t.label}</div>
+      <div class="kpi-tile-value${!hasData?' no-data':''}">${hasData?t.val:'No data'}</div>
+      ${t.sub&&hasData?`<div style="font-size:12px;color:var(--muted);margin-bottom:6px">${t.sub}</div>`:''}
+      ${hasData&&hasPrev
+        ?`<span class="kpi-delta-pill ${t.d.cls}">${t.d.label}</span><div class="kpi-vs-label">${vsLbl}</div>`
+        :`<div class="kpi-vs-label" style="font-style:italic">${hasData?'No prior period':'—'}</div>`
+      }
+    </div>`).join('');
+}
+
+function renderActivityKPIs(c, p, vsLbl) {
+  const ACT_COLORS_P = ['#0f2340','#1a3a5c','#254d7a','#c9922a','#e8b04a','#2d7a4e','#3daa6e','#8e4dba'];
+  const ACT_PRICES_L = [1900,5000,2500,2000,3000,800,1200,600];
+  const hasData = c.days > 0;
+  const hasPrev = p.days > 0;
+  const vals     = ACTIVITIES.map(a => c.acts[a]||0);
+  const prevVals = ACTIVITIES.map(a => p.acts[a]||0);
+  const maxVal   = Math.max(...vals,1);
+
+  const el = document.getElementById('activity-kpi-tiles');
+  if (!el) return;
+  el.innerHTML = ACTIVITIES.map((a,i) => {
+    const d      = calcDelta(vals[i], prevVals[i]);
+    const rev    = vals[i] * ACT_PRICES_L[i];
+    const barPct = Math.round(vals[i]/maxVal*100);
+    return `<div class="kpi-tile activity">
+      <div class="kpi-tile-label">${a}</div>
+      <div class="kpi-tile-value${!hasData?' no-data':''}">${hasData?fmt(vals[i]):'—'}</div>
+      ${hasData?`<div style="font-size:12px;color:var(--gold);font-weight:600;margin-bottom:2px">PKR ${fmtK(rev)}</div>`:''}
+      <div class="kpi-act-bar-bg"><div class="kpi-act-bar-fill" style="width:${hasData?barPct:0}%;background:${ACT_COLORS_P[i]}"></div></div>
+      ${hasData&&hasPrev
+        ?`<span class="kpi-delta-pill ${d.cls}">${d.label}</span><div class="kpi-vs-label">${vsLbl}</div>`
+        :`<div class="kpi-vs-label" style="font-style:italic">${hasData?'No prior data':'—'}</div>`
+      }
+    </div>`;
+  }).join('');
+}
+
+function buildDailyVisitorsChart(daily, range) {
+  const ctx = document.getElementById('chartDailyVisitors').getContext('2d');
+  if (charts.daily) charts.daily.destroy();
+  const slice = daily.slice(-range);
+  charts.daily = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels:slice.map(d=>new Date(d.date).toLocaleDateString('en-PK',{month:'short',day:'numeric'})),
+      datasets:[{
+        label:'Visitors', data:slice.map(d=>d.visitors),
+        borderColor:'#c9922a', backgroundColor:'rgba(201,146,42,0.10)',
+        fill:true, tension:0.4, pointRadius:2, pointHoverRadius:5,
+        pointBackgroundColor:slice.map(d=>d.dayType==='Weekend'?'#c9922a':'#1a3a5c')
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{grid:{display:false},ticks:{maxTicksLimit:12,font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11}}}}}
+  });
+}
+
+function setDailyRange(r, btn) {
+  dailyRange = r;
+  document.querySelectorAll('#page-dashboard .tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if (dashData) buildDailyVisitorsChart(dashData.daily, r);
+}
+
+function buildActivityMixChart(agg) {
+  const ctx = document.getElementById('chartActivityMix').getContext('2d');
+  if (charts.mix) charts.mix.destroy();
+  const vals = ACTIVITIES.map(a => agg.acts[a]||0);
+  if (vals.every(v=>v===0)) return;
+  const ACT_COLORS_P = ['#0f2340','#1a3a5c','#254d7a','#c9922a','#e8b04a','#2d7a4e','#3daa6e','#8e4dba'];
+  charts.mix = new Chart(ctx, {
+    type:'doughnut',
+    data:{labels:ACTIVITIES,datasets:[{data:vals,backgroundColor:ACT_COLORS_P,borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:11},boxWidth:12}}}}
+  });
+  const p = PERIODS.find(x=>x.id===selectedPeriod);
+  const el = document.getElementById('mix-label');
+  if (el) el.textContent = p.label;
+}
+
+// ─── YEAR FILTER ─────────────────────────────────────────────
+function buildYearFilterTabs() {
+  if(!dashData) return;
+  const years=[...new Set(dashData.monthly.map(m=>m.year))].sort();
+  const row=document.getElementById('year-filter-tabs');
+  row.innerHTML=`<button class="year-tab active" onclick="setTrendYear('all',this)">All Years</button>`
+    +years.map(y=>`<button class="year-tab has-data" onclick="setTrendYear(${y},this)">${y}</button>`).join('');
+}
+
+function setTrendYear(y, btn) {
+  currentTrendYear=y;
+  document.querySelectorAll('.year-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('trend-year-label').textContent=y==='all'?'All Years':String(y);
+  if(dashData) buildTrendCharts();
+}
+
+function filteredMonthly() {
+  if(!dashData) return [];
+  if(currentTrendYear==='all') return dashData.monthly;
+  return dashData.monthly.filter(m=>m.year===currentTrendYear);
+}
+
+function filteredWeekly() {
+  if(!dashData) return [];
+  if(currentTrendYear==='all') return dashData.weekly.slice(-52);
+  return dashData.weekly.filter(w=>{
+    const yr=w.weekStart?new Date(w.weekStart+'T00:00:00').getFullYear():null;
+    return yr===currentTrendYear;
+  });
+}
+
+// ─── TRENDS ──────────────────────────────────────────────────
+function buildTrendCharts() {
+  if(!dashData) return;
+  buildWeeklyChart(); buildMonthlyChart(); buildYoYChart();
+  buildStackedChart('weekly'); buildWdWeChart(); buildTopActChart();
+}
+
+function buildWeeklyChart() {
+  const ctx=document.getElementById('chartWeekly').getContext('2d');
+  if(charts.weekly) charts.weekly.destroy();
+  const w=filteredWeekly();
+  charts.weekly=new Chart(ctx,{
+    type:'bar',
+    data:{labels:w.map(r=>`${r.year||''} Wk${r.weekNum}`),datasets:[{label:'Visitors',data:w.map(r=>r.visitors),backgroundColor:w.map((r,i)=>i===w.length-1?'#c9922a':'#1a3a5c'),borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:20,font:{size:10}}},y:{grid:{color:'rgba(0,0,0,0.05)'}}}}
+  });
+}
+
+function buildMonthlyChart() {
+  const ctx=document.getElementById('chartMonthly').getContext('2d');
+  if(charts.monthly) charts.monthly.destroy();
+  const m=filteredMonthly();
+  charts.monthly=new Chart(ctx,{
+    type:'bar',
+    data:{labels:m.map(r=>r.label),
+      datasets:[
+        {label:'Visitors',data:m.map(r=>r.visitors),backgroundColor:'#1a3a5c',borderRadius:3,yAxisID:'y'},
+        {label:'Revenue (PKR)',data:m.map(r=>r.revenue),backgroundColor:'rgba(201,146,42,0.8)',borderRadius:3,yAxisID:'y2'}
+      ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:11}}}},
+      scales:{x:{grid:{display:false},ticks:{maxRotation:45,font:{size:10}}},y:{position:'left',grid:{color:'rgba(0,0,0,0.05)'}},y2:{position:'right',grid:{display:false}}}}
+  });
+}
+
+function buildYoYChart() {
+  const ctx=document.getElementById('chartYoY').getContext('2d');
+  if(charts.yoy) charts.yoy.destroy();
+  // Group monthly data by year and month number for comparison
+  const byYear={};
+  dashData.monthly.forEach(m=>{
+    if(!byYear[m.year]) byYear[m.year]=Array(12).fill(0);
+    const mIdx=['January','February','March','April','May','June','July','August','September','October','November','December'].indexOf(m.month);
+    if(mIdx>=0) byYear[m.year][mIdx]=m.visitors;
+  });
+  const years=Object.keys(byYear).sort();
+  const yoyColors=['#0f2340','#1a3a5c','#c9922a','#e8b04a','#2d7a4e','#3daa6e','#8e4dba','#e05c3a'];
+  const monthLabels=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  charts.yoy=new Chart(ctx,{
+    type:'line',
+    data:{labels:monthLabels,datasets:years.map((y,i)=>({
+      label:y, data:byYear[y],
+      borderColor:yoyColors[i%yoyColors.length],
+      backgroundColor:'transparent',
+      tension:0.4, pointRadius:3, pointHoverRadius:5,
+      borderWidth:2
+    }))},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{font:{size:11},boxWidth:12}}},
+      scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(0,0,0,0.05)'}}}}
+  });
+}
+
+function buildStackedChart(mode) {
+  const ctx=document.getElementById('chartStacked').getContext('2d');
+  if(charts.stacked) charts.stacked.destroy();
+  const src=mode==='weekly'?filteredWeekly():filteredMonthly();
+  const labels=mode==='weekly'?src.map(r=>`${r.year||''} Wk${r.weekNum}`):src.map(r=>r.label);
+  charts.stacked=new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:ACTIVITIES.map((a,i)=>({label:a,data:src.map(r=>r.activities[a]||0),backgroundColor:ACT_COLORS[i],stack:'s',borderWidth:0}))},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10}}},
+      scales:{x:{stacked:true,grid:{display:false},ticks:{maxTicksLimit:20,font:{size:10}}},y:{stacked:true,grid:{color:'rgba(0,0,0,0.05)'}}}}
+  });
+}
+
+function setTrendView(mode,btn) {
+  document.querySelectorAll('#page-trends .tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  buildStackedChart(mode);
+}
+
+function buildWdWeChart() {
+  const ctx=document.getElementById('chartWdWe').getContext('2d');
+  if(charts.wdwe) charts.wdwe.destroy();
+  const src = currentTrendYear==='all' ? dashData.daily : dashData.daily.filter(d=>new Date(d.date+'T00:00:00').getFullYear()===currentTrendYear);
+  const wd=src.filter(d=>d.dayType==='Weekday'), we=src.filter(d=>d.dayType==='Weekend');
+  const avgWd=wd.length?Math.round(wd.reduce((s,d)=>s+d.visitors,0)/wd.length):0;
+  const avgWe=we.length?Math.round(we.reduce((s,d)=>s+d.visitors,0)/we.length):0;
+  charts.wdwe=new Chart(ctx,{
+    type:'bar',data:{labels:[`Weekday Avg (${wd.length} days)`,`Weekend Avg (${we.length} days)`],
+      datasets:[{data:[avgWd,avgWe],backgroundColor:['#1a3a5c','#c9922a'],borderRadius:6}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(0,0,0,0.05)'}},y:{grid:{display:false}}}}
+  });
+}
+
+function buildTopActChart() {
+  const ctx=document.getElementById('chartTopAct').getContext('2d');
+  if(charts.topact) charts.topact.destroy();
+  const src=currentTrendYear==='all'?dashData.daily:dashData.daily.filter(d=>new Date(d.date+'T00:00:00').getFullYear()===currentTrendYear);
+  const sorted=ACTIVITIES.map((a,i)=>({name:a,val:src.reduce((s,d)=>s+(d.activities[a]||0),0),col:ACT_COLORS[i]})).sort((a,b)=>b.val-a.val);
+  charts.topact=new Chart(ctx,{
+    type:'bar',data:{labels:sorted.map(s=>s.name),datasets:[{data:sorted.map(s=>s.val),backgroundColor:sorted.map(s=>s.col),borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(0,0,0,0.05)'}},y:{grid:{display:false}}}}
+  });
+}
+
+// ─── SUBMIT ───────────────────────────────────────────────────
+async function setupSubmitPage() {
+  const today=new Date().toISOString().split('T')[0];
+  const di=document.getElementById('sub-date');
+  if(!di._listenerAdded){di.addEventListener('change',onDateChange);di._listenerAdded=true;}
+  di.value=today;
+  await refreshPricesForDate(today);
+  buildActivityInputs();
+  updateDayTypeBadge(today);
+  checkDuplicateDate(today);
+}
+
+async function refreshPricesForDate(dateStr) {
+  const we=isWeekend(dateStr);
+  try {
+    const data=await gasPost({action:'GET_PRICES'});
+    if(data.success) ACTIVITIES.forEach(a=>{if(data.prices[a]) activePrices[a]=we?data.prices[a].weekend:data.prices[a].weekday;});
+  } catch(e){}
+}
+
+function buildActivityInputs() {
+  document.getElementById('activity-inputs-grid').innerHTML=ACTIVITIES.map(a=>{
+    const key=a.replace(/\s/g,'_'),price=activePrices[a]||DEFAULT_PRICES[a];
+    return `<div class="act-input-card">
+      <div class="act-input-header"><span class="act-input-name">${a}</span><span class="act-input-price" id="price-badge-${key}">PKR ${fmt(price)}</span></div>
+      <div class="act-count-label">Visitor Count</div>
+      <input type="number" min="0" id="cnt-${key}" class="act-count-input" placeholder="0" oninput="onCountChange('${a}')">
+      <div class="act-revenue-line" id="rev-line-${key}">— auto revenue —</div>
+    </div>`;
+  }).join('');
+  updateSubTotals();
+}
+
+function onCountChange(activity) {
+  const key=activity.replace(/\s/g,'_');
+  const count=Number(document.getElementById('cnt-'+key)?.value||0);
+  const rev=count*(activePrices[activity]||DEFAULT_PRICES[activity]||0);
+  const el=document.getElementById('rev-line-'+key);
+  if(el){el.textContent=count>0?`PKR ${fmt(rev)}`:'— auto revenue —';el.classList.toggle('has-value',count>0);}
+  updateSubTotals();
+}
+
+function updateSubTotals() {
+  let vis=0,rev=0;
+  ACTIVITIES.forEach(a=>{const c=Number(document.getElementById('cnt-'+a.replace(/\s/g,'_'))?.value||0);vis+=c;rev+=c*(activePrices[a]||DEFAULT_PRICES[a]||0);});
+  document.getElementById('sub-total-vis').textContent=fmt(vis);
+  document.getElementById('sub-total-rev').textContent='PKR '+fmt(rev);
+}
+
+function updateDayTypeBadge(dateStr) {
+  const we=isWeekend(dateStr);
+  const badge=document.getElementById('sub-daytype-badge'),dayEl=document.getElementById('sub-day-type');
+  badge.textContent=we?'Weekend — Weekend Prices':'Weekday — Weekday Prices';
+  badge.className=`card-badge ${we?'badge-gold':'badge-navy'}`;
+  if(dayEl) dayEl.textContent=we?'Weekend':'Weekday';
+}
+
+async function onDateChange() {
+  const dateStr=document.getElementById('sub-date').value; if(!dateStr) return;
+  await refreshPricesForDate(dateStr);
+  updateDayTypeBadge(dateStr);
+  ACTIVITIES.forEach(a=>{const b=document.getElementById('price-badge-'+a.replace(/\s/g,'_'));if(b) b.textContent=`PKR ${fmt(activePrices[a]||DEFAULT_PRICES[a])}`;});
+  ACTIVITIES.forEach(a=>onCountChange(a));
+  checkDuplicateDate(dateStr);
+}
+
+function checkDuplicateDate(dateStr) {
+  const banner=document.getElementById('dup-warning');
+  if(!dashData){banner.classList.remove('show');return;}
+  banner.classList.toggle('show',dashData.daily.some(d=>d.date===dateStr));
+}
+
+async function submitDaily() {
+  const btn=document.getElementById('submit-btn'),dateStr=document.getElementById('sub-date').value;
+  if(!dateStr){showToast('Please select a date','error');return;}
+  const counts={},revenues={};
+  ACTIVITIES.forEach(a=>{const c=Number(document.getElementById('cnt-'+a.replace(/\s/g,'_'))?.value||0);counts[a]=c;revenues[a]=c*(activePrices[a]||DEFAULT_PRICES[a]||0);});
+  if(Object.values(counts).every(v=>v===0)){showToast('Please enter at least one visitor count','error');return;}
+  btn.innerHTML='<span class="spinner"></span>Submitting...';btn.disabled=true;
+  try {
+    const res=await gasPost({action:'SUBMIT_DAILY',date:dateStr,submittedBy:document.getElementById('sub-name').value||'Sales Team',notes:document.getElementById('sub-notes').value,counts,revenues});
+    if(res.success){showToast(`✓ Saved — ${fmt(res.totalVisitors)} visitors, PKR ${fmt(res.totalRevenue)}`,'success');dashData=null;clearSubmitForm();document.getElementById('dup-warning').classList.remove('show');}
+    else showToast('Error: '+res.error,'error');
+  } catch(e){showToast('Network error — is the GAS URL set?','error');}
+  btn.innerHTML='Submit Daily Report';btn.disabled=false;
+}
+
+function clearSubmitForm() {
+  ACTIVITIES.forEach(a=>{const key=a.replace(/\s/g,'_'),cnt=document.getElementById('cnt-'+key),rev=document.getElementById('rev-line-'+key);if(cnt)cnt.value='';if(rev){rev.textContent='— auto revenue —';rev.classList.remove('has-value');}});
+  document.getElementById('sub-notes').value='';document.getElementById('sub-name').value='';
+  updateSubTotals();
+}
+
+// ─── LOG ─────────────────────────────────────────────────────
+async function loadLog() {
+  try {
+    const data=await gasPost({action:'GET_LOG'});
+    if(!data.success) throw new Error();
+    const tbody=document.getElementById('log-body');
+    if(!data.rows.length){tbody.innerHTML='<tr><td colspan="15" class="no-data">No entries yet</td></tr>';return;}
+    tbody.innerHTML=[...data.rows].reverse().map(r=>{
+      const date=r['Date']?new Date(r['Date']).toLocaleDateString('en-PK'):'—';
+      const src=r['Source']==='Historical'?'<span class="badge-hist">Historical</span>':'<span class="badge-wd">Daily</span>';
+      const dt=r['Day Type']==='Weekend'?'<span class="badge-we">Weekend</span>':'<span class="badge-wd">Weekday</span>';
+      return `<tr><td><strong>${date}</strong></td><td>${src}</td><td>${dt}</td><td>${r['Submitted By']||'—'}</td><td><strong>${fmt(r['Total Visitors'])}</strong></td><td>PKR ${fmt(r['Total Revenue (PKR)'])}</td>${ACTIVITIES.map(a=>`<td>${fmt(r[a+' Count'])}</td>`).join('')}<td>${r['Notes']||'—'}</td></tr>`;
+    }).join('');
+  } catch(e){document.getElementById('log-body').innerHTML='<tr><td colspan="15" class="no-data">Unable to load — check GAS URL</td></tr>';}
+}
+
+// ─── IMPORT PAGE ─────────────────────────────────────────────
+async function loadImportStatus() {
+  try {
+    const data=await gasPost({action:'GET_IMPORT_STATUS'});
+    if(!data.success) throw new Error();
+    const grid=document.getElementById('data-status-grid');
+    if(!data.totalDays){
+      grid.innerHTML='<div class="no-data" style="padding:20px">No data in system yet — ready for first import.</div>';
+      document.getElementById('status-badge').textContent='Empty';
+      document.getElementById('status-summary').textContent='No operating days recorded.';
+      return;
+    }
+    const maxDays=Math.max(...Object.values(data.byYear));
+    grid.innerHTML=Object.entries(data.byYear).sort().map(([y,c])=>`
+      <div class="data-status-card">
+        <div class="ds-year">${y}</div>
+        <div class="ds-count">${c} days</div>
+        <div class="ds-bar"><div class="ds-bar-fill" style="width:${(c/maxDays*100).toFixed(1)}%"></div></div>
+      </div>`).join('');
+    document.getElementById('status-badge').textContent=`${data.totalDays} Operating Days`;
+    document.getElementById('status-summary').textContent=`Data spans ${data.firstDate} to ${data.lastDate} — ${Object.keys(data.byYear).length} year(s) on record.`;
+  } catch(e){
+    document.getElementById('data-status-grid').innerHTML='<div class="no-data">Connect GAS URL to see status</div>';
+    document.getElementById('status-badge').textContent='Offline';
+  }
+}
+
+function setImportMethod(method, btn) {
+  ['csv','paste','manual'].forEach(m=>{document.getElementById('import-method-'+m).style.display=m===method?'block':'none';});
+  document.querySelectorAll('#page-import .tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  resetImportPage();
+}
+
+// ─── CSV PARSING ─────────────────────────────────────────────
+function handleFileDrop(e) {
+  e.preventDefault(); document.getElementById('import-drop-zone').classList.remove('dragover');
+  const file=e.dataTransfer.files[0]; if(file) parseCSVFile(file);
+}
+
+function handleFileSelect(e) {
+  const file=e.target.files[0]; if(file) parseCSVFile(file);
+}
+
+function parseCSVFile(file) {
+  const reader=new FileReader();
+  reader.onload=ev=>parseCSVText(ev.target.result);
+  reader.readAsText(file);
+}
+
+function processPastedCSV() {
+  const text=document.getElementById('csv-paste-area').value.trim();
+  if(!text){showToast('Please paste CSV content first','error');return;}
+  parseCSVText(text);
+}
+
+function parseCSVText(text) {
+  const lines=text.trim().split('\n').map(l=>l.trim()).filter(l=>l);
+  if(lines.length<2){showToast('CSV must have a header row and at least one data row','error');return;}
+
+  const headers=lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
+
+  // Map CSV columns to our structure — flexible, order-independent
+  const colMap={};
+  headers.forEach((h,i)=>{
+    const hl=h.toLowerCase();
+    if(hl==='date') colMap.date=i;
+    if(hl==='submitted by'||hl==='submittedby') colMap.submittedBy=i;
+    if(hl==='notes') colMap.notes=i;
+    ACTIVITIES.forEach(a=>{
+      const al=a.toLowerCase();
+      if(hl===al+' count'||hl===al) colMap['cnt_'+a]=i;
+      if(hl===al+' revenue (pkr)'||hl===al+' revenue') colMap['rev_'+a]=i;
+    });
+  });
+
+  if(colMap.date===undefined){showToast('No "Date" column found in CSV','error');return;}
+
+  const rows=[];
+  lines.slice(1).forEach((line,idx)=>{
+    const cols=line.split(',').map(c=>c.trim().replace(/^"|"$/g,''));
+    const counts={},revenues={};
+    ACTIVITIES.forEach(a=>{
+      counts[a]=Number(cols[colMap['cnt_'+a]]||0)||0;
+      revenues[a]=Number(cols[colMap['rev_'+a]]||0)||0;
+    });
+    rows.push({
+      date:cols[colMap.date]||'',
+      submittedBy:cols[colMap.submittedBy]||'Historical Import',
+      notes:cols[colMap.notes]||'',
+      counts, revenues
+    });
+  });
+
+  showToast(`Parsed ${rows.length} rows — validating...`,'success');
+  validateAndPreview(rows);
+}
+
+// ─── MANUAL QUEUE ────────────────────────────────────────────
+function addManualRow() {
+  const year=document.getElementById('manual-year').value;
+  const month=document.getElementById('manual-month').value;
+  if(!year||!month){showToast('Please enter year and month','error');return;}
+  // Use last day of month as date
+  const lastDay=new Date(Number(year),Number(month),0).getDate();
+  const date=`${year}-${month}-${String(lastDay).padStart(2,'0')}`;
+  const counts={},revenues={};
+  ACTIVITIES.forEach(a=>{counts[a]=Number(document.getElementById('manual-'+a.replace(/\s/g,'_'))?.value||0)||0;revenues[a]=0;});
+  const row={date,submittedBy:'Historical Import',notes:document.getElementById('manual-notes').value||`${year}-${month} monthly summary`,counts,revenues};
+  manualQueue.push(row);
+  renderManualQueue();
+}
+
+function renderManualQueue() {
+  const el=document.getElementById('manual-queue');
+  if(!manualQueue.length){el.innerHTML='';document.getElementById('manual-queue-actions').style.display='none';return;}
+  document.getElementById('manual-queue-actions').style.display='block';
+  el.innerHTML=`<div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:8px">${manualQueue.length} row(s) queued:</div>`
+    +manualQueue.map((r,i)=>`<div style="font-size:13px;padding:6px 10px;background:var(--cream);border-radius:6px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center">
+      <span>${r.date} — ${Object.values(r.counts).reduce((s,v)=>s+v,0)} total visitors — ${r.notes}</span>
+      <button class="btn btn-outline btn-sm" onclick="manualQueue.splice(${i},1);renderManualQueue()" style="padding:2px 10px;font-size:11px">✕</button>
+    </div>`).join('');
+}
+
+function clearManualQueue(){manualQueue=[];renderManualQueue();}
+
+function validateManualQueue() {
+  if(!manualQueue.length){showToast('Queue is empty','error');return;}
+  validateAndPreview([...manualQueue]);
+}
+
+// ─── VALIDATION & IMPORT CORE ────────────────────────────────
+async function validateAndPreview(rows) {
+  pendingImportRows=rows;
+  document.getElementById('import-validation-section').style.display='block';
+  document.getElementById('import-result-section').style.display='none';
+  document.getElementById('validation-badge').textContent='Validating...';
+  document.getElementById('validation-badge').className='card-badge badge-navy';
+
+  try {
+    const data=await gasPost({action:'VALIDATE_IMPORT',pin:'1234',rows});
+    if(!data.success){showToast('Validation error: '+data.error,'error');return;}
+
+    document.getElementById('vr-total').textContent=data.total;
+    document.getElementById('vr-valid').textContent=data.valid;
+    document.getElementById('vr-dup').textContent=data.duplicates;
+    document.getElementById('vr-err').textContent=data.errors.length;
+
+    const dupNote=document.getElementById('validation-dup-note');
+    if(data.duplicates>0){
+      dupNote.style.display='flex';
+      document.getElementById('dup-count-msg').textContent=`${data.duplicates} date(s) already exist in the system`;
+    } else dupNote.style.display='none';
+
+    const errNote=document.getElementById('validation-error-note');
+    errNote.style.display=data.errors.length>0?'flex':'none';
+
+    // Preview table
+    const tbody=document.getElementById('validation-preview-body');
+    const previewRows=data.preview||[];
+    const errorDates=new Set(data.errors.map(e=>e.date));
+    const dupDateSet=new Set(data.dupDates||[]);
+    tbody.innerHTML=previewRows.map((r,i)=>{
+      const isErr=errorDates.has(r.date),isDup=dupDateSet.has(r.date);
+      const cls=isErr?'error-row':isDup?'dup-row':'ok-row';
+      const status=isErr?'❌ Error':isDup?'⚠️ Duplicate':'✓ Valid';
+      return `<tr class="${cls}"><td>${i+1}</td><td>${r.date}</td><td>${fmt(r.visitors)}</td><td>PKR ${fmt(r.revenue)}</td><td>${status}</td></tr>`;
+    }).join('');
+    if(previewRows.length<data.total){
+      tbody.innerHTML+=`<tr><td colspan="5" style="text-align:center;color:var(--muted);font-size:12px;padding:8px">... and ${data.total-previewRows.length} more rows</td></tr>`;
+    }
+
+    const allOk=data.valid===data.total&&data.errors.length===0;
+    document.getElementById('validation-badge').textContent=allOk?'✓ All Valid':`${data.errors.length} errors, ${data.duplicates} duplicates`;
+    document.getElementById('validation-badge').className=`card-badge ${allOk?'badge-green':data.errors.length>0?'badge-red':'badge-amber'}`;
+
+    document.getElementById('confirm-import-btn').disabled=data.valid===0;
+
+  } catch(e) {
+    // Offline fallback: client-side validate
+    clientSideValidate(rows);
+  }
+}
+
+function clientSideValidate(rows) {
+  let valid=0,errors=[];
+  const preview=[];
+  rows.forEach((r,i)=>{
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(r.date)){errors.push({row:i+1,date:r.date,error:'Invalid date'});return;}
+    const vis=Object.values(r.counts).reduce((s,v)=>s+v,0);
+    const rev=Object.values(r.revenues||{}).reduce((s,v)=>s+v,0);
+    valid++;
+    if(preview.length<5) preview.push({date:r.date,visitors:vis,revenue:rev});
+  });
+  document.getElementById('vr-total').textContent=rows.length;
+  document.getElementById('vr-valid').textContent=valid;
+  document.getElementById('vr-dup').textContent=0;
+  document.getElementById('vr-err').textContent=errors.length;
+  const tbody=document.getElementById('validation-preview-body');
+  tbody.innerHTML=preview.map((r,i)=>`<tr class="ok-row"><td>${i+1}</td><td>${r.date}</td><td>${fmt(r.visitors)}</td><td>PKR ${fmt(r.revenue)}</td><td>✓ Valid</td></tr>`).join('');
+  document.getElementById('validation-badge').textContent=`${valid} valid rows (offline check)`;
+  document.getElementById('validation-badge').className='card-badge badge-amber';
+}
+
+async function confirmImport() {
+  if(!pendingImportRows.length){showToast('No rows to import','error');return;}
+  const overwrite=document.getElementById('overwrite-toggle')?.checked||false;
+  const btn=document.getElementById('confirm-import-btn');
+  const progLabel=document.getElementById('import-progress-label');
+  const progBar=document.getElementById('import-progress-bar');
+
+  btn.innerHTML='<span class="spinner"></span>Importing...';btn.disabled=true;
+  progBar.style.display='block';progBar.value=10;
+  progLabel.textContent=`Importing ${pendingImportRows.length} rows...`;
+
+  try {
+    // Send in batches of 200 rows to avoid GAS payload limits
+    const BATCH=200, total=pendingImportRows.length;
+    let inserted=0,skipped=0,overwritten=0,errors=[];
+
+    for(let i=0;i<total;i+=BATCH){
+      const batch=pendingImportRows.slice(i,i+BATCH);
+      progLabel.textContent=`Processing rows ${i+1}–${Math.min(i+BATCH,total)} of ${total}...`;
+      progBar.value=Math.round((i/total)*80)+10;
+      const res=await gasPost({action:'IMPORT_HISTORICAL',pin:'1234',rows:batch,overwrite});
+      if(res.success){inserted+=res.inserted||0;skipped+=res.skipped||0;overwritten+=res.overwritten||0;errors=[...errors,...(res.errors||[])];}
+      else{showToast('Import error: '+res.error,'error');break;}
+    }
+
+    progBar.value=100;
+    document.getElementById('ir-inserted').textContent=inserted;
+    document.getElementById('ir-overwritten').textContent=overwritten;
+    document.getElementById('ir-skipped').textContent=skipped;
+    document.getElementById('ir-errors').textContent=errors.length;
+    document.getElementById('ir-message').textContent=`Import complete. ${inserted} new days added, ${overwritten} overwritten, ${skipped} skipped (duplicate), ${errors.length} errors.`;
+
+    document.getElementById('import-validation-section').style.display='none';
+    document.getElementById('import-result-section').style.display='block';
+
+    // Refresh dashboard data
+    dashData=null;
+    showToast(`✓ Import complete — ${inserted} days added`,'success');
+    loadImportStatus();
+
+  } catch(e){
+    showToast('Import failed: '+e.message,'error');
+  }
+  btn.innerHTML='✓ Confirm Import';btn.disabled=false;
+  progBar.style.display='none';progLabel.textContent='';
+}
+
+function cancelImport() {
+  document.getElementById('import-validation-section').style.display='none';
+  pendingImportRows=[];
+}
+
+function resetImportPage() {
+  document.getElementById('import-validation-section').style.display='none';
+  document.getElementById('import-result-section').style.display='none';
+  pendingImportRows=[];
+  const fi=document.getElementById('csv-file-input'); if(fi) fi.value='';
+  const pa=document.getElementById('csv-paste-area'); if(pa) pa.value='';
+}
+
+function downloadTemplate() {
+  const header='Date,Submitted By,Notes,'+ACTIVITIES.map(a=>a+' Count').join(',')+','+ACTIVITIES.map(a=>a+' Revenue (PKR)').join(',');
+  const example1='2023-01-01,Historical Import,Opening Day 2023,'+ACTIVITIES.map((_,i)=>([120,28,15,10,85,22,18,35][i]||0)).join(',')+','+ACTIVITIES.map((_,i)=>([228000,140000,37500,20000,255000,17600,21600,21000][i]||0)).join(',');
+  const example2='2023-01-07,Historical Import,Weekend,'+ACTIVITIES.map((_,i)=>([280,55,38,30,160,48,40,80][i]||0)).join(',')+','+ACTIVITIES.map((_,i)=>([532000,275000,95000,60000,480000,38400,48000,48000][i]||0)).join(',');
+  const csv=[header,example1,example2].join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='MJSR_Historical_Import_Template.csv';
+  a.click();
+}
+
+// ─── ADMIN ───────────────────────────────────────────────────
+function unlockAdmin() {
+  if(document.getElementById('admin-pin-input').value==='1234'){
+    document.getElementById('admin-lock').style.display='none';
+    document.getElementById('admin-panel').style.display='block';
+    loadPrices();
+  } else showToast('Incorrect PIN','error');
+}
+
+async function loadPrices() {
+  try {
+    const data=await gasPost({action:'GET_PRICES'});if(!data.success) throw new Error();
+    document.getElementById('price-body').innerHTML=ACTIVITIES.map(a=>{
+      const p=data.prices[a]||{weekday:DEFAULT_PRICES[a],weekend:DEFAULT_PRICES[a]};
+      const k=a.replace(/\s/g,'_');
+      return `<tr><td><strong>${a}</strong></td><td><input type="number" min="0" id="wd-${k}" value="${p.weekday}"></td><td><input type="number" min="0" id="we-${k}" value="${p.weekend}"></td></tr>`;
+    }).join('');
+  } catch(e){document.getElementById('price-body').innerHTML='<tr><td colspan="3" class="no-data">Unable to load</td></tr>';}
+}
+
+async function savePrices() {
+  const prices=ACTIVITIES.map(a=>({activity:a,weekday:Number(document.getElementById('wd-'+a.replace(/\s/g,'_'))?.value||0),weekend:Number(document.getElementById('we-'+a.replace(/\s/g,'_'))?.value||0)}));
+  try{const data=await gasPost({action:'UPDATE_PRICES',pin:'1234',prices});showToast(data.success?'✓ Prices saved':'Error: '+data.error,data.success?'success':'error');}
+  catch(e){showToast('Error saving prices','error');}
+}
+
+async function runBootstrap() {
+  try{const data=await gasPost({action:'BOOTSTRAP'});showToast(data.success?'✓ Bootstrapped':data.error,data.success?'success':'error');}
+  catch(e){showToast('Error','error');}
+}
+
+async function runRebuild() {
+  try{const data=await gasPost({action:'REBUILD_SUMMARIES'});showToast(data.success?'✓ Summaries rebuilt':data.error,data.success?'success':'error');}
+  catch(e){showToast('Error','error');}
+}
+
+async function clearAllDataConfirm() {
+  if(!confirm('WARNING: This will delete ALL data rows. This cannot be undone. Are you absolutely sure?')) return;
+  const code=prompt('Type CONFIRM_CLEAR to proceed:');
+  if(code!=='CONFIRM_CLEAR'){showToast('Cancelled — confirmation text did not match','error');return;}
+  try{const data=await gasPost({action:'CLEAR_ALL_DATA',pin:'1234',confirm:'CONFIRM_CLEAR'});showToast(data.success?'✓ All data cleared':data.error,data.success?'success':'error');dashData=null;}
+  catch(e){showToast('Error','error');}
+}
+
+// ─── DEMO DATA ────────────────────────────────────────────────
+function getDemoData() {
+  const prices=[1900,5000,2500,2000,3000,800,1200,600];
+  const now=new Date();
+  // Generate 3 years of daily data for demo
+  const daily=[];
+  for(let i=1095;i>=0;i--){
+    const d=new Date(now);d.setDate(d.getDate()-i);
+    const we=d.getDay()===0||d.getDay()===6;
+    const base=we?420:200;
+    const acts={},revs={};
+    const shares=[0.26,0.13,0.10,0.08,0.18,0.07,0.10,0.08];
+    ACTIVITIES.forEach((a,idx)=>{acts[a]=Math.round(base*shares[idx]*(0.7+Math.random()*0.6));revs[a]=acts[a]*prices[idx];});
+    daily.push({date:d.toISOString().split('T')[0],day:['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()],dayType:we?'Weekend':'Weekday',visitors:Object.values(acts).reduce((s,v)=>s+v,0),revenue:Object.values(revs).reduce((s,v)=>s+v,0),activities:acts});
+  }
+  // Weekly
+  const weekly=[];
+  for(let i=155;i>=0;i--){
+    const acts={};ACTIVITIES.forEach(a=>{acts[a]=Math.round(1200+Math.random()*2500);});
+    const wDate=new Date(now);wDate.setDate(wDate.getDate()-i*7);
+    weekly.push({weekNum:Math.ceil((i%52)||52),year:wDate.getFullYear(),weekStart:wDate.toISOString().split('T')[0],weekEnd:'',visitors:Object.values(acts).reduce((s,v)=>s+v,0),revenue:7000000+Math.random()*5000000,activities:acts});
+  }
+  // Monthly
+  const monthly=[];
+  for(let i=35;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const acts={};ACTIVITIES.forEach(a=>{acts[a]=Math.round(4000+Math.random()*9000);});
+    const mNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
+    monthly.push({month:mNames[d.getMonth()],year:d.getFullYear(),label:`${mNames[d.getMonth()]} ${d.getFullYear()}`,visitors:Object.values(acts).reduce((s,v)=>s+v,0),revenue:25000000+Math.random()*25000000,opDays:24,avgVis:280,activities:acts});
+  }
+  return{success:true,activities:ACTIVITIES,today:daily[daily.length-1],yesterday:daily[daily.length-2],daily,weekly,monthly};
+}
+
+document.addEventListener('DOMContentLoaded',()=>{loadDashboard();});
+</script>
+</body>
+</html>
