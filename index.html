@@ -1385,14 +1385,43 @@ function getHistRevForRange(start, end) {
 }
 
 // ── Get customers from Historical_Data for a month range ─────
+// Returns exact monthly total for full-month ranges.
+// For sub-monthly ranges (days < 28), scales proportionally and flags as estimate.
 function getHistCustForRange(start, end) {
   if (!HIST || !HIST.months) return null;
+
+  const startDate = new Date(start + 'T00:00:00');
+  const endDate   = new Date(end   + 'T00:00:00');
+  const rangeDays = Math.round((endDate - startDate) / 86400000) + 1;
+
   let total = 0, covered = 0;
   HIST.months.forEach((m, i) => {
-    const mStart = m + '-01', mEnd = m + '-31';
-    if (mEnd >= start && mStart <= end) { total += HIST.custTotal[i] || 0; covered++; }
+    const mStart = m + '-01';
+    // Last day of month
+    const mDate  = new Date(m + '-01T00:00:00');
+    const mDays  = new Date(mDate.getFullYear(), mDate.getMonth()+1, 0).getDate();
+    const mEnd   = m + '-' + String(mDays).padStart(2,'0');
+    if (mEnd >= start && mStart <= end) {
+      total += HIST.custTotal[i] || 0;
+      covered++;
+    }
   });
-  return covered > 0 ? { customers: total, months: covered } : null;
+
+  if (covered === 0) return null;
+
+  // If range is less than 28 days, scale proportionally
+  const isSubMonthly = rangeDays < 28;
+  if (isSubMonthly && covered === 1) {
+    // Single month — work out what fraction of the month the range covers
+    const mKey   = start.slice(0,7);
+    const mDate  = new Date(mKey + '-01T00:00:00');
+    const mDays  = new Date(mDate.getFullYear(), mDate.getMonth()+1, 0).getDate();
+    const scaled = Math.round((total / mDays) * rangeDays);
+    return { customers: scaled, months: covered, isEstimate: true,
+      note: 'Est. ' + rangeDays + '/' + mDays + ' days of ' + mKey };
+  }
+
+  return { customers: total, months: covered, isEstimate: false };
 }
 
 // ── Delta pill HTML ───────────────────────────────────────────
@@ -1439,7 +1468,9 @@ function buildYoyTiles() {
     const hc = getHistCustForRange(win.prevStart, win.prevEnd);
     if (hc && hc.customers > 0) {
       prevVis = hc.customers;
-      prevVisSource = 'Historical Data (' + hc.months + ' month' + (hc.months > 1 ? 's' : '') + ')';
+      prevVisSource = hc.isEstimate
+        ? 'Est. from Historical Data (' + hc.note + ')'
+        : 'Historical Data (' + hc.months + ' month' + (hc.months > 1 ? 's' : '') + ')';
     }
   }
   if (currVis === 0 && HIST) {
@@ -1550,10 +1581,22 @@ function buildYoyCharts() {
   let prevFromHist = false;
   if (HIST && HIST.months) {
     HIST.months.forEach((m, i) => {
-      const mCurrEquiv = String(yr) + m.slice(4); // same month this year
       const inPrevRange = m >= win.prevStart.slice(0,7) && m <= win.prevEnd.slice(0,7);
       if (inPrevRange && !prevByMonth[m] && (HIST.custTotal[i]||0) > 0) {
-        prevByMonth[m] = HIST.custTotal[i];
+        // Scale proportionally if range is sub-monthly
+        const mDate = new Date(m + '-01T00:00:00');
+        const mDays = new Date(mDate.getFullYear(), mDate.getMonth()+1, 0).getDate();
+        const rangeInMonth = Math.min(
+          new Date(win.prevEnd+'T00:00:00'),
+          new Date(m.slice(0,4)+'-'+m.slice(5,7)+'-'+String(mDays).padStart(2,'0')+'T00:00:00')
+        ) - Math.max(
+          new Date(win.prevStart+'T00:00:00'),
+          new Date(m+'-01T00:00:00')
+        );
+        const daysInRange = Math.max(1, Math.round(rangeInMonth / 86400000) + 1);
+        prevByMonth[m] = daysInRange < mDays
+          ? Math.round(HIST.custTotal[i] * daysInRange / mDays)
+          : HIST.custTotal[i];
         prevFromHist = true;
       }
     });
