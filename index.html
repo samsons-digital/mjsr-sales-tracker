@@ -286,6 +286,31 @@
   .kpi-act-bar-bg { height: 3px; background: var(--border); border-radius: 2px; margin: 8px 0 6px; overflow: hidden; }
   .kpi-act-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
 
+  /* Historical Intelligence tab */
+  .hist-banner {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 14px; margin-bottom: 24px;
+  }
+  .hist-kpi {
+    background: var(--navy);
+    border-radius: 12px; padding: 18px 20px;
+  }
+  .hist-kpi-label { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+  .hist-kpi-val   { font-family: 'DM Serif Display', serif; font-size: 26px; color: var(--gold2); line-height: 1; margin-bottom: 4px; }
+  .hist-kpi-sub   { font-size: 11px; color: rgba(255,255,255,0.45); }
+  .site-section-label {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.8px;
+    margin-bottom: 14px;
+  }
+  .site-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .mjsr-dot { background: var(--navy3); }
+  .gv-dot   { background: var(--green2); }
+  .mjsr-label { color: var(--navy2); }
+  .gv-label   { color: var(--green); }
+
   .period-pill {
     padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 500;
     cursor: pointer; border: 1.5px solid var(--border);
@@ -320,6 +345,7 @@
     <button class="sub-tab locked-tab" id="tab-trends"    onclick="requirePin('trends',this)">Trends</button>
     <button class="sub-tab locked-tab" id="tab-log"       onclick="requirePin('log',this)">Log</button>
     <button class="sub-tab locked-tab" id="tab-import"    onclick="requirePin('import',this)">📥 Import History</button>
+    <button class="sub-tab locked-tab" id="tab-historical" onclick="requirePin('historical',this)">📊 Historical Intel</button>
     <button class="sub-tab locked-tab" id="tab-admin"     onclick="requirePin('admin',this)">Admin</button>
   </div>
 </div>
@@ -431,13 +457,70 @@
     </div>
   </div>
   <div class="card">
-    <div class="card-header"><span class="card-title">Visitor Counts per Activity</span><span class="card-badge badge-amber" id="sub-daytype-badge">Loading prices...</span></div>
-    <div class="card-body"><div class="act-inputs-grid" id="activity-inputs-grid"></div></div>
+    <div class="card-header">
+      <span class="card-title">Visitor Counts per Activity</span>
+      <span class="card-badge badge-amber" id="sub-daytype-badge">Loading prices...</span>
+    </div>
+    <div class="card-body">
+
+      <!-- MJSR SECTION -->
+      <div class="site-section-label mjsr-label">
+        <div class="site-dot mjsr-dot"></div>
+        Malam Jabba Ski Resort (MJSR)
+      </div>
+      <div class="act-inputs-grid" id="mjsr-inputs-grid"></div>
+
+      <!-- GV SECTION -->
+      <div class="site-section-label gv-label" style="margin-top:24px;">
+        <div class="site-dot gv-dot"></div>
+        Green Valley Adventure Park (GV)
+      </div>
+      <div class="act-inputs-grid" id="gv-inputs-grid"></div>
+
+    </div>
   </div>
+
+  <!-- ADD NEW ACTIVITY -->
+  <div class="card" id="add-activity-card">
+    <div class="card-header">
+      <span class="card-title">Add New Activity</span>
+      <span class="card-badge badge-navy">Optional</span>
+    </div>
+    <div class="card-body">
+      <div style="display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:12px; align-items:end;">
+        <div>
+          <label class="form-label">Activity Name</label>
+          <input type="text" class="form-input" id="new-act-name" placeholder="e.g. Quad Biking">
+        </div>
+        <div>
+          <label class="form-label">Site</label>
+          <select class="form-input" id="new-act-site">
+            <option value="MJSR">MJSR</option>
+            <option value="GV">Green Valley</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Weekday Price (PKR)</label>
+          <input type="number" class="form-input" id="new-act-wd" placeholder="0" min="0">
+        </div>
+        <div>
+          <label class="form-label">Weekend Price (PKR)</label>
+          <input type="number" class="form-input" id="new-act-we" placeholder="0" min="0">
+        </div>
+      </div>
+      <div style="margin-top:14px; display:flex; gap:10px; align-items:center;">
+        <button class="btn btn-primary btn-sm" onclick="addNewActivity()">+ Add Activity</button>
+        <span style="font-size:12px; color:var(--muted)">Activity will be added to today's submission and saved to the price list</span>
+      </div>
+      <div id="new-act-error" style="display:none; color:var(--red); font-size:13px; margin-top:8px;"></div>
+    </div>
+  </div>
+
   <div class="totals-preview">
+    <div class="tp-item">MJSR Visitors<div class="tp-val" id="sub-total-mjsr">0</div></div>
+    <div class="tp-item">GV Visitors<div class="tp-val" id="sub-total-gv">0</div></div>
     <div class="tp-item">Total Visitors<div class="tp-val" id="sub-total-vis">0</div></div>
-    <div class="tp-item">Auto-Calculated Revenue<div class="tp-val gold" id="sub-total-rev">PKR 0</div></div>
-    <div class="tp-item">Day Type<div class="tp-val" id="sub-day-type">—</div></div>
+    <div class="tp-item">Auto Revenue<div class="tp-val gold" id="sub-total-rev">PKR 0</div></div>
     <div style="margin-left:auto; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
       <button class="btn btn-outline" onclick="clearSubmitForm()" style="color:rgba(255,255,255,0.6); border-color:rgba(255,255,255,0.25);">Clear</button>
       <button class="btn btn-gold" id="submit-btn" onclick="submitDaily()">Submit Daily Report</button>
@@ -737,6 +820,74 @@
         <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">Deletes all data rows from all tabs. Headers are preserved. This cannot be undone.</div>
         <button class="btn btn-red btn-sm" onclick="clearAllDataConfirm()">Clear All Data</button>
       </div>
+      <div style="border-top:1px solid var(--border); padding-top:16px;">
+        <div style="font-weight:600; margin-bottom:6px;">Seed Historical Data</div>
+        <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">Writes all 117 months of historical revenue &amp; footfall data (Jul 2016–Mar 2026) into the <strong>Historical_Data</strong> sheet tab. Safe to re-run — clears and rewrites the tab only. Required before the Historical Intel tab will load.</div>
+        <button class="btn btn-outline btn-sm" onclick="seedHistoricalData()">Seed Historical Data</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ══════════════════════════════════════════ HISTORICAL INTELLIGENCE -->
+<div class="page" id="page-historical">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Historical Intelligence</div>
+      <div class="page-sub">Revenue &amp; Footfall — July 2016 to March 2026 · All figures in PKR</div>
+    </div>
+  </div>
+  <div class="hist-banner">
+    <div class="hist-kpi"><div class="hist-kpi-label">All-Time Revenue</div><div class="hist-kpi-val">PKR 2.66B</div><div class="hist-kpi-sub">Jul 2016 – Mar 2026</div></div>
+    <div class="hist-kpi"><div class="hist-kpi-label">All-Time Customers</div><div class="hist-kpi-val">2.45M</div><div class="hist-kpi-sub">Unique visitor count</div></div>
+    <div class="hist-kpi"><div class="hist-kpi-label">ARPC 2026</div><div class="hist-kpi-val">PKR 2,475</div><div class="hist-kpi-sub">Avg revenue per customer</div></div>
+    <div class="hist-kpi"><div class="hist-kpi-label">ARPC Growth</div><div class="hist-kpi-val">14.5×</div><div class="hist-kpi-sub">PKR 171 (2017) → PKR 2,475 (2026)</div></div>
+    <div class="hist-kpi"><div class="hist-kpi-label">Peak Revenue Year</div><div class="hist-kpi-val">FY2025</div><div class="hist-kpi-sub">PKR 631.4M</div></div>
+    <div class="hist-kpi"><div class="hist-kpi-label">Peak Footfall Year</div><div class="hist-kpi-val">2017</div><div class="hist-kpi-sub">333,402 customers</div></div>
+  </div>
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-body" style="padding:14px 20px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+      <span style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;">View</span>
+      <div class="tab-row" style="margin:0">
+        <button class="tab-btn active" onclick="setHistView('yearly',this)">Yearly Overview</button>
+        <button class="tab-btn" onclick="setHistView('monthly',this)">Monthly Trend</button>
+        <button class="tab-btn" onclick="setHistView('revenue',this)">Revenue Breakdown</button>
+        <button class="tab-btn" onclick="setHistView('footfall',this)">Footfall Breakdown</button>
+        <button class="tab-btn" onclick="setHistView('arpc',this)">ARPC &amp; Yield</button>
+      </div>
+    </div>
+  </div>
+  <!-- Yearly Overview -->
+  <div id="hist-view-yearly">
+    <div class="chart-row">
+      <div class="card"><div class="card-header"><span class="card-title">Annual Revenue (PKR)</span><span class="card-badge badge-gold">2016–2026</span></div><div class="card-body"><div class="chart-wrap" style="height:280px"><canvas id="chartHistYearlyRev" aria-label="Annual revenue 2016 to 2026"></canvas></div></div></div>
+      <div class="card"><div class="card-header"><span class="card-title">Annual Customer Footfall</span><span class="card-badge badge-navy">2016–2026</span></div><div class="card-body"><div class="chart-wrap" style="height:280px"><canvas id="chartHistYearlyCust" aria-label="Annual footfall 2016 to 2026"></canvas></div></div></div>
+    </div>
+    <div class="card"><div class="card-header"><span class="card-title">Year-on-Year Summary</span></div><div class="card-body" style="overflow-x:auto"><table class="log-table" id="hist-yearly-table"></table></div></div>
+  </div>
+  <!-- Monthly Trend -->
+  <div id="hist-view-monthly" style="display:none">
+    <div class="card"><div class="card-header"><span class="card-title">Monthly Revenue Trend</span><span class="card-badge badge-gold">117 Months</span></div><div class="card-body"><div class="chart-wrap" style="height:300px"><canvas id="chartHistMonthlyRev" aria-label="Monthly revenue trend"></canvas></div></div></div>
+    <div class="card"><div class="card-header"><span class="card-title">Monthly Customer Footfall Trend</span><span class="card-badge badge-navy">117 Months</span></div><div class="card-body"><div class="chart-wrap" style="height:300px"><canvas id="chartHistMonthlyCust" aria-label="Monthly footfall trend"></canvas></div></div></div>
+  </div>
+  <!-- Revenue Breakdown -->
+  <div id="hist-view-revenue" style="display:none">
+    <div class="chart-row">
+      <div class="card"><div class="card-header"><span class="card-title">Revenue by Activity (All-Time)</span><span class="card-badge badge-gold">Totals</span></div><div class="card-body"><div class="chart-wrap" style="height:300px"><canvas id="chartHistRevPie" aria-label="Revenue by activity"></canvas></div></div></div>
+      <div class="card"><div class="card-header"><span class="card-title">Activity Revenue Over Time</span><span class="card-badge badge-navy">Stacked Annual</span></div><div class="card-body"><div class="chart-wrap" style="height:300px"><canvas id="chartHistRevStacked" aria-label="Stacked revenue by activity"></canvas></div></div></div>
+    </div>
+  </div>
+  <!-- Footfall Breakdown -->
+  <div id="hist-view-footfall" style="display:none">
+    <div class="chart-row">
+      <div class="card"><div class="card-header"><span class="card-title">Footfall by Activity (All-Time)</span><span class="card-badge badge-navy">Totals</span></div><div class="card-body"><div class="chart-wrap" style="height:300px"><canvas id="chartHistCustPie" aria-label="Footfall by activity"></canvas></div></div></div>
+      <div class="card"><div class="card-header"><span class="card-title">Activity Footfall Over Time</span><span class="card-badge badge-navy">Stacked Annual</span></div><div class="card-body"><div class="chart-wrap" style="height:300px"><canvas id="chartHistCustStacked" aria-label="Stacked footfall by activity"></canvas></div></div></div>
+    </div>
+  </div>
+  <!-- ARPC & Yield -->
+  <div id="hist-view-arpc" style="display:none">
+    <div class="chart-row">
+      <div class="card"><div class="card-header"><span class="card-title">Average Revenue Per Customer (ARPC)</span><span class="card-badge badge-gold">PKR per visitor</span></div><div class="card-body"><div class="chart-wrap" style="height:300px"><canvas id="chartHistArpc" aria-label="ARPC trend"></canvas></div></div></div>
+      <div class="card"><div class="card-header"><span class="card-title">Revenue vs Footfall</span><span class="card-badge badge-navy">Dual Axis</span></div><div class="card-body"><div class="chart-wrap" style="height:300px"><canvas id="chartHistRevCust" aria-label="Revenue vs customers dual axis"></canvas></div></div></div>
     </div>
   </div>
 </div>
@@ -747,15 +898,28 @@
 // ─── CONFIG ───────────────────────────────────────────────────
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbz9FfSujFbcfCVcNck-if-e59mDxX0Z7sOYWB23CXaBucA7XofniCUC2ciy6x80a6y7iA/exec';
 
-const ACTIVITIES = [
+// MJSR activities (main resort)
+const MJSR_ACTIVITIES = [
   'Chairlift','Zipline','Giant Swing','Slingshot',
-  'Skiing','Kids Climbing Wall','Leap of Faith','Ferris Wheel'
+  'Skiing','Kids Climbing Wall','Leap of Faith'
 ];
+// GV (Green Valley) activities
+const GV_ACTIVITIES = [
+  'GV Horse Riding','GV Ferris Wheel','GV Kids Zipline','GV Tubby Lanes'
+];
+// All activities combined (used for Sheet columns — order matters)
+const ACTIVITIES = [...MJSR_ACTIVITIES, ...GV_ACTIVITIES];
+
 const DEFAULT_PRICES = {
   'Chairlift':1900,'Zipline':5000,'Giant Swing':2500,'Slingshot':2000,
-  'Skiing':3000,'Kids Climbing Wall':800,'Leap of Faith':1200,'Ferris Wheel':600
+  'Skiing':3000,'Kids Climbing Wall':800,'Leap of Faith':1200,
+  'GV Horse Riding':500,'GV Ferris Wheel':500,'GV Kids Zipline':500,'GV Tubby Lanes':300
 };
-const ACT_COLORS = ['#0f2340','#1a3a5c','#254d7a','#c9922a','#e8b04a','#2d7a4e','#3daa6e','#8e4dba'];
+
+const ACT_COLORS = [
+  '#0f2340','#1a3a5c','#254d7a','#c9922a','#e8b04a','#2d7a4e','#3daa6e',
+  '#166534','#15803d','#16a34a','#4ade80'
+];
 
 let dashData       = null;
 let activePrices   = {...DEFAULT_PRICES};
@@ -813,6 +977,7 @@ function showPage(id, btn) {
   if (id==='submit')                 setupSubmitPage();
   if (id==='import')                 loadImportStatus();
   if (id==='admin')                  loadPrices();
+  if (id==='historical')             loadHistorical();
 }
 
 // ─── CONNECTION STATUS ────────────────────────────────────────
@@ -1208,6 +1373,9 @@ function buildTopActChart() {
 }
 
 // ─── SUBMIT ───────────────────────────────────────────────────
+// Track any custom activities added in this session
+let customActivities = []; // [{name, site, wd, we}]
+
 async function setupSubmitPage() {
   const today=new Date().toISOString().split('T')[0];
   const di=document.getElementById('sub-date');
@@ -1223,20 +1391,40 @@ async function refreshPricesForDate(dateStr) {
   const we=isWeekend(dateStr);
   try {
     const data=await gasPost({action:'GET_PRICES'});
-    if(data.success) ACTIVITIES.forEach(a=>{if(data.prices[a]) activePrices[a]=we?data.prices[a].weekend:data.prices[a].weekday;});
+    if(data.success) {
+      // Update prices for all known activities
+      [...ACTIVITIES,...customActivities.map(c=>c.name)].forEach(a=>{
+        if(data.prices[a]) activePrices[a]=we?data.prices[a].weekend:data.prices[a].weekday;
+      });
+    }
   } catch(e){}
 }
 
+function actInputCard(a) {
+  const key=a.replace(/\s/g,'_'), price=activePrices[a]||DEFAULT_PRICES[a]||0;
+  return `<div class="act-input-card">
+    <div class="act-input-header">
+      <span class="act-input-name">${a.replace(/^GV /,'')}</span>
+      <span class="act-input-price" id="price-badge-${key}">PKR ${fmt(price)}</span>
+    </div>
+    <div class="act-count-label">Visitor Count</div>
+    <input type="number" min="0" id="cnt-${key}" class="act-count-input" placeholder="0" oninput="onCountChange('${a}')">
+    <div class="act-revenue-line" id="rev-line-${key}">— auto revenue —</div>
+  </div>`;
+}
+
 function buildActivityInputs() {
-  document.getElementById('activity-inputs-grid').innerHTML=ACTIVITIES.map(a=>{
-    const key=a.replace(/\s/g,'_'),price=activePrices[a]||DEFAULT_PRICES[a];
-    return `<div class="act-input-card">
-      <div class="act-input-header"><span class="act-input-name">${a}</span><span class="act-input-price" id="price-badge-${key}">PKR ${fmt(price)}</span></div>
-      <div class="act-count-label">Visitor Count</div>
-      <input type="number" min="0" id="cnt-${key}" class="act-count-input" placeholder="0" oninput="onCountChange('${a}')">
-      <div class="act-revenue-line" id="rev-line-${key}">— auto revenue —</div>
-    </div>`;
-  }).join('');
+  const mjsrGrid = document.getElementById('mjsr-inputs-grid');
+  const gvGrid   = document.getElementById('gv-inputs-grid');
+  if (!mjsrGrid || !gvGrid) return;
+
+  // MJSR activities + any custom MJSR ones
+  const mjsrActs = [...MJSR_ACTIVITIES, ...customActivities.filter(c=>c.site==='MJSR').map(c=>c.name)];
+  // GV activities + any custom GV ones
+  const gvActs   = [...GV_ACTIVITIES,   ...customActivities.filter(c=>c.site==='GV').map(c=>c.name)];
+
+  mjsrGrid.innerHTML = mjsrActs.map(actInputCard).join('');
+  gvGrid.innerHTML   = gvActs.map(actInputCard).join('');
   updateSubTotals();
 }
 
@@ -1250,17 +1438,72 @@ function onCountChange(activity) {
 }
 
 function updateSubTotals() {
-  let vis=0,rev=0;
-  ACTIVITIES.forEach(a=>{const c=Number(document.getElementById('cnt-'+a.replace(/\s/g,'_'))?.value||0);vis+=c;rev+=c*(activePrices[a]||DEFAULT_PRICES[a]||0);});
-  document.getElementById('sub-total-vis').textContent=fmt(vis);
-  document.getElementById('sub-total-rev').textContent='PKR '+fmt(rev);
+  const allActs = [...MJSR_ACTIVITIES, ...GV_ACTIVITIES, ...customActivities.map(c=>c.name)];
+  const mjsrActs = [...MJSR_ACTIVITIES, ...customActivities.filter(c=>c.site==='MJSR').map(c=>c.name)];
+  const gvActs   = [...GV_ACTIVITIES,   ...customActivities.filter(c=>c.site==='GV').map(c=>c.name)];
+
+  let mjsrVis=0, gvVis=0, totalRev=0;
+  mjsrActs.forEach(a=>{
+    const c=Number(document.getElementById('cnt-'+a.replace(/\s/g,'_'))?.value||0);
+    mjsrVis+=c; totalRev+=c*(activePrices[a]||DEFAULT_PRICES[a]||0);
+  });
+  gvActs.forEach(a=>{
+    const c=Number(document.getElementById('cnt-'+a.replace(/\s/g,'_'))?.value||0);
+    gvVis+=c; totalRev+=c*(activePrices[a]||DEFAULT_PRICES[a]||0);
+  });
+
+  const mjsrEl=document.getElementById('sub-total-mjsr');
+  const gvEl  =document.getElementById('sub-total-gv');
+  if(mjsrEl) mjsrEl.textContent=fmt(mjsrVis);
+  if(gvEl)   gvEl.textContent  =fmt(gvVis);
+  document.getElementById('sub-total-vis').textContent='PKR '+fmt(mjsrVis+gvVis);
+  document.getElementById('sub-total-rev').textContent='PKR '+fmt(totalRev);
+}
+
+// ─── ADD NEW ACTIVITY ─────────────────────────────────────────
+async function addNewActivity() {
+  const nameEl = document.getElementById('new-act-name');
+  const siteEl = document.getElementById('new-act-site');
+  const wdEl   = document.getElementById('new-act-wd');
+  const weEl   = document.getElementById('new-act-we');
+  const errEl  = document.getElementById('new-act-error');
+  errEl.style.display = 'none';
+
+  const name = nameEl.value.trim();
+  const site = siteEl.value;
+  const wd   = Number(wdEl.value) || 0;
+  const we   = Number(weEl.value) || 0;
+
+  if (!name) { errEl.textContent = 'Please enter an activity name.'; errEl.style.display = 'block'; return; }
+  const fullName = site === 'GV' ? 'GV ' + name : name;
+  if ([...ACTIVITIES, ...customActivities.map(c=>c.name)].includes(fullName)) {
+    errEl.textContent = 'This activity already exists.'; errEl.style.display = 'block'; return;
+  }
+
+  // Add to local custom list
+  customActivities.push({ name: fullName, site, wd, we });
+  activePrices[fullName] = isWeekend(document.getElementById('sub-date').value) ? we : wd;
+
+  // Save to Config sheet via GAS
+  try {
+    await gasPost({ action: 'UPDATE_PRICES', pin: '1234',
+      prices: [{ activity: fullName, weekday: wd, weekend: we }] });
+    showToast(`✓ ${fullName} added at PKR ${fmt(wd)} WD / PKR ${fmt(we)} WE`, 'success');
+  } catch(e) {
+    showToast('Activity added locally — could not save to sheet', 'error');
+  }
+
+  // Clear inputs and rebuild grid
+  nameEl.value = ''; wdEl.value = ''; weEl.value = '';
+  buildActivityInputs();
 }
 
 function updateDayTypeBadge(dateStr) {
   const we=isWeekend(dateStr);
-  const badge=document.getElementById('sub-daytype-badge'),dayEl=document.getElementById('sub-day-type');
+  const badge=document.getElementById('sub-daytype-badge');
   badge.textContent=we?'Weekend — Weekend Prices':'Weekday — Weekday Prices';
   badge.className=`card-badge ${we?'badge-gold':'badge-navy'}`;
+  const dayEl=document.getElementById('sub-day-type');
   if(dayEl) dayEl.textContent=we?'Weekend':'Weekday';
 }
 
@@ -1268,8 +1511,12 @@ async function onDateChange() {
   const dateStr=document.getElementById('sub-date').value; if(!dateStr) return;
   await refreshPricesForDate(dateStr);
   updateDayTypeBadge(dateStr);
-  ACTIVITIES.forEach(a=>{const b=document.getElementById('price-badge-'+a.replace(/\s/g,'_'));if(b) b.textContent=`PKR ${fmt(activePrices[a]||DEFAULT_PRICES[a])}`;});
-  ACTIVITIES.forEach(a=>onCountChange(a));
+  // Refresh all price badges
+  [...ACTIVITIES,...customActivities.map(c=>c.name)].forEach(a=>{
+    const b=document.getElementById('price-badge-'+a.replace(/\s/g,'_'));
+    if(b) b.textContent=`PKR ${fmt(activePrices[a]||DEFAULT_PRICES[a]||0)}`;
+  });
+  [...ACTIVITIES,...customActivities.map(c=>c.name)].forEach(a=>onCountChange(a));
   checkDuplicateDate(dateStr);
 }
 
@@ -1280,23 +1527,41 @@ function checkDuplicateDate(dateStr) {
 }
 
 async function submitDaily() {
-  const btn=document.getElementById('submit-btn'),dateStr=document.getElementById('sub-date').value;
+  const btn=document.getElementById('submit-btn'), dateStr=document.getElementById('sub-date').value;
   if(!dateStr){showToast('Please select a date','error');return;}
-  const counts={},revenues={};
-  ACTIVITIES.forEach(a=>{const c=Number(document.getElementById('cnt-'+a.replace(/\s/g,'_'))?.value||0);counts[a]=c;revenues[a]=c*(activePrices[a]||DEFAULT_PRICES[a]||0);});
+
+  const allActs=[...MJSR_ACTIVITIES,...GV_ACTIVITIES,...customActivities.map(c=>c.name)];
+  const counts={}, revenues={};
+  allActs.forEach(a=>{
+    const c=Number(document.getElementById('cnt-'+a.replace(/\s/g,'_'))?.value||0);
+    counts[a]=c; revenues[a]=c*(activePrices[a]||DEFAULT_PRICES[a]||0);
+  });
   if(Object.values(counts).every(v=>v===0)){showToast('Please enter at least one visitor count','error');return;}
+
   btn.innerHTML='<span class="spinner"></span>Submitting...';btn.disabled=true;
   try {
-    const res=await gasPost({action:'SUBMIT_DAILY',date:dateStr,submittedBy:document.getElementById('sub-name').value||'Sales Team',notes:document.getElementById('sub-notes').value,counts,revenues});
-    if(res.success){showToast(`✓ Saved — ${fmt(res.totalVisitors)} visitors, PKR ${fmt(res.totalRevenue)}`,'success');dashData=null;clearSubmitForm();document.getElementById('dup-warning').classList.remove('show');}
-    else showToast('Error: '+res.error,'error');
+    const res=await gasPost({action:'SUBMIT_DAILY',date:dateStr,
+      submittedBy:document.getElementById('sub-name').value||'Sales Team',
+      notes:document.getElementById('sub-notes').value,counts,revenues});
+    if(res.success){
+      showToast(`✓ Saved — ${fmt(res.totalVisitors)} visitors, PKR ${fmt(res.totalRevenue)}`,'success');
+      dashData=null;clearSubmitForm();
+      document.getElementById('dup-warning').classList.remove('show');
+    } else showToast('Error: '+res.error,'error');
   } catch(e){showToast('Network error — is the GAS URL set?','error');}
   btn.innerHTML='Submit Daily Report';btn.disabled=false;
 }
 
 function clearSubmitForm() {
-  ACTIVITIES.forEach(a=>{const key=a.replace(/\s/g,'_'),cnt=document.getElementById('cnt-'+key),rev=document.getElementById('rev-line-'+key);if(cnt)cnt.value='';if(rev){rev.textContent='— auto revenue —';rev.classList.remove('has-value');}});
-  document.getElementById('sub-notes').value='';document.getElementById('sub-name').value='';
+  [...ACTIVITIES,...customActivities.map(c=>c.name)].forEach(a=>{
+    const key=a.replace(/\s/g,'_');
+    const cnt=document.getElementById('cnt-'+key);
+    const rev=document.getElementById('rev-line-'+key);
+    if(cnt) cnt.value='';
+    if(rev){rev.textContent='— auto revenue —';rev.classList.remove('has-value');}
+  });
+  document.getElementById('sub-notes').value='';
+  document.getElementById('sub-name').value='';
   updateSubTotals();
 }
 
@@ -1593,27 +1858,28 @@ function downloadTemplate() {
 }
 
 // ─── ADMIN ───────────────────────────────────────────────────
-function unlockAdmin() {
-  if(document.getElementById('admin-pin-input').value==='1234'){
-    document.getElementById('admin-lock').style.display='none';
-    document.getElementById('admin-panel').style.display='block';
-    loadPrices();
-  } else showToast('Incorrect PIN','error');
-}
-
 async function loadPrices() {
   try {
-    const data=await gasPost({action:'GET_PRICES'});if(!data.success) throw new Error();
-    document.getElementById('price-body').innerHTML=ACTIVITIES.map(a=>{
-      const p=data.prices[a]||{weekday:DEFAULT_PRICES[a],weekend:DEFAULT_PRICES[a]};
+    const data=await gasPost({action:'GET_PRICES'});
+    if(!data.success) throw new Error();
+    // Show all known activities: MJSR + GV + any custom added
+    const allActs=[...ACTIVITIES,...customActivities.map(c=>c.name)];
+    document.getElementById('price-body').innerHTML=allActs.map(a=>{
+      const p=data.prices[a]||{weekday:DEFAULT_PRICES[a]||0,weekend:DEFAULT_PRICES[a]||0};
       const k=a.replace(/\s/g,'_');
-      return `<tr><td><strong>${a}</strong></td><td><input type="number" min="0" id="wd-${k}" value="${p.weekday}"></td><td><input type="number" min="0" id="we-${k}" value="${p.weekend}"></td></tr>`;
+      const isGV=GV_ACTIVITIES.includes(a)||a.startsWith('GV ');
+      const siteTag=isGV
+        ?`<span style="font-size:10px;background:#e3f5ec;color:var(--green);padding:1px 6px;border-radius:8px;margin-left:6px;font-weight:600;">GV</span>`
+        :`<span style="font-size:10px;background:#e8eef5;color:var(--navy2);padding:1px 6px;border-radius:8px;margin-left:6px;font-weight:600;">MJSR</span>`;
+      const displayName = a.replace(/^GV /,'');
+      return `<tr><td><strong>${displayName}</strong>${siteTag}</td><td><input type="number" min="0" id="wd-${k}" value="${p.weekday}"></td><td><input type="number" min="0" id="we-${k}" value="${p.weekend}"></td></tr>`;
     }).join('');
   } catch(e){document.getElementById('price-body').innerHTML='<tr><td colspan="3" class="no-data">Unable to load</td></tr>';}
 }
 
 async function savePrices() {
-  const prices=ACTIVITIES.map(a=>({activity:a,weekday:Number(document.getElementById('wd-'+a.replace(/\s/g,'_'))?.value||0),weekend:Number(document.getElementById('we-'+a.replace(/\s/g,'_'))?.value||0)}));
+  const allActs=[...ACTIVITIES,...customActivities.map(c=>c.name)];
+  const prices=allActs.map(a=>({activity:a,weekday:Number(document.getElementById('wd-'+a.replace(/\s/g,'_'))?.value||0),weekend:Number(document.getElementById('we-'+a.replace(/\s/g,'_'))?.value||0)}));
   try{const data=await gasPost({action:'UPDATE_PRICES',pin:'1234',prices});showToast(data.success?'✓ Prices saved':'Error: '+data.error,data.success?'success':'error');}
   catch(e){showToast('Error saving prices','error');}
 }
@@ -1626,6 +1892,20 @@ async function runBootstrap() {
 async function runRebuild() {
   try{const data=await gasPost({action:'REBUILD_SUMMARIES'});showToast(data.success?'✓ Summaries rebuilt':data.error,data.success?'success':'error');}
   catch(e){showToast('Error','error');}
+}
+
+async function seedHistoricalData() {
+  if(!confirm('This will write 117 months of historical data into the Historical_Data sheet tab. Continue?')) return;
+  showToast('Seeding historical data — this may take 20–30 seconds...', 'success');
+  try {
+    const data = await gasPost({ action: 'SEED_HISTORICAL', pin: '1234' });
+    if (data.success) {
+      showToast(`✓ ${data.message}`, 'success');
+      HIST = null; // force reload next time Historical Intel tab opens
+    } else {
+      showToast('Error: ' + data.error, 'error');
+    }
+  } catch(e) { showToast('Network error seeding historical data', 'error'); }
 }
 
 async function clearAllDataConfirm() {
@@ -1676,6 +1956,400 @@ document.addEventListener('DOMContentLoaded', () => {
   // Check backend connection on load
   checkConnection();
 });
+</script>
+
+// ─── HISTORICAL INTELLIGENCE DATA ────────────────────────────
+// Data is fetched live from the Historical_Data sheet tab
+// Falls back to embedded data if sheet is unavailable
+
+let HIST = null; // populated on first load of Historical Intel tab
+
+const HIST_FALLBACK_MONTHS = [];  // empty fallback — seed the sheet first
+
+async function loadHistorical() {
+  if (HIST) {
+    // Already loaded this session
+    setTimeout(() => { buildHistYearlyCharts(); buildHistYearlyTable(); }, 50);
+    return;
+  }
+
+  // Show loading state
+  const banner = document.querySelector('.hist-banner');
+  if (banner) banner.style.opacity = '0.5';
+
+  try {
+    const res = await gasPost({ action: 'GET_HISTORICAL' });
+    if (res.success && res.rows && res.rows.length > 0) {
+      HIST = processHistoricalRows(res.rows);
+      showToast(`✓ Historical data loaded — ${res.rows.length} months`, 'success');
+    } else {
+      showToast('Historical_Data tab not found — run Seed Historical in Admin', 'error');
+      HIST = getHistFallback();
+    }
+  } catch(e) {
+    showToast('Could not load historical data from sheet', 'error');
+    HIST = getHistFallback();
+  }
+
+  if (banner) banner.style.opacity = '1';
+  setTimeout(() => { buildHistYearlyCharts(); buildHistYearlyTable(); }, 50);
+}
+
+function processHistoricalRows(rows) {
+  // rows is array of objects keyed by header name
+  // e.g. { 'Month': '2016-07', 'Chairlift Revenue': 9233250, ... }
+  const months = rows.map(r => r['Month']);
+  const revCats  = ['Chairlift','Zipline','Skiing','Giant Swing','Slingshot','Entry','Restaurant','Others','Deals'];
+  const custCats = ['Chairlift','Zipline','Giant Swing','Slingshot','Entry','Deals'];
+
+  const revByCat  = {};
+  const custByCat = {};
+  revCats.forEach(c  => { revByCat[c]  = rows.map(r => Number(r[c + ' Revenue'])  || 0); });
+  custCats.forEach(c => { custByCat[c] = rows.map(r => Number(r[c + ' Customers'])|| 0); });
+
+  const revTotal  = rows.map(r => Number(r['Total Revenue'])   || 0);
+  const custTotal = rows.map(r => Number(r['Total Customers']) || 0);
+
+  // Build yearly aggregates
+  const allYears = [...new Set(months.map(m => m.slice(0,4)))].sort();
+  const yearlyRev  = allYears.map(y => months.reduce((s,m,i) => m.startsWith(y)?s+revTotal[i]:s, 0));
+  const yearlyCust = allYears.map(y => months.reduce((s,m,i) => m.startsWith(y)?s+custTotal[i]:s, 0));
+
+  const arpcMap = { '2026':2475,'2025':1876,'2024':1735,'2023':1510,'2022':1555,'2021':782,'2020':508,'2019':345,'2018':184,'2017':171 };
+  const yearlyArpc = allYears.map(y => arpcMap[y] || 0);
+
+  return {
+    months, revTotal, custTotal, revByCat, custByCat,
+    years: allYears, yearlyRev, yearlyCust, yearlyArpc,
+    categories: { revenue: revCats, customers: custCats }
+  };
+}
+
+function getHistFallback() {
+  // Empty structure — prompts user to seed the sheet
+  return {
+    months: [], revTotal: [], custTotal: [], revByCat: {}, custByCat: {},
+    years: [], yearlyRev: [], yearlyCust: [], yearlyArpc: [],
+    categories: { revenue: [], customers: [] }
+  };
+}
+
+// ─── HISTORICAL CHARTS ───────────────────────────────────────
+let histCharts = {};
+let histView = 'yearly';
+
+const HIST_COLORS = [
+  '#0f2340','#c9922a','#2d7a4e','#8e4dba','#e05c3a',
+  '#1a3a5c','#e8b04a','#3daa6e','#6b7a8d'
+];
+const CAT_LABELS = {
+  'Chairlift':'Chairlift','Zipline':'Zipline','Skiing':'Skiing',
+  'Giant Swing':'Giant Swing','Slingshot':'Slingshot',
+  'Entry':'Entry Fee','Restaurant':'Restaurant','Others':'Others','Deals':'Deals'
+};
+
+function setHistView(view, btn) {
+  histView = view;
+  document.querySelectorAll('#page-historical .tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  ['yearly','monthly','revenue','footfall','arpc'].forEach(v=>{
+    const el=document.getElementById('hist-view-'+v);
+    if(el) el.style.display = v===view?'':'none';
+  });
+  buildHistCharts(view);
+}
+
+function buildHistCharts(view) {
+  if(view==='yearly')   { buildHistYearlyCharts(); buildHistYearlyTable(); }
+  if(view==='monthly')  { buildHistMonthlyCharts(); }
+  if(view==='revenue')  { buildHistRevCharts(); }
+  if(view==='footfall') { buildHistCustCharts(); }
+  if(view==='arpc')     { buildHistArpcCharts(); }
+}
+
+function destroyHist(id) {
+  if(histCharts[id]) { histCharts[id].destroy(); delete histCharts[id]; }
+}
+
+function fmtM(v) {
+  if(v>=1e9) return 'PKR '+(v/1e9).toFixed(1)+'B';
+  if(v>=1e6) return 'PKR '+(v/1e6).toFixed(0)+'M';
+  if(v>=1e3) return 'PKR '+(v/1e3).toFixed(0)+'K';
+  return 'PKR '+Math.round(v);
+}
+
+function buildHistYearlyCharts() {
+  destroyHist('yearlyRev'); destroyHist('yearlyCust');
+
+  const yrs  = HIST.years;
+  const revs = HIST.yearlyRev;
+  const custs= HIST.yearlyCust;
+
+  histCharts.yearlyRev = new Chart(
+    document.getElementById('chartHistYearlyRev').getContext('2d'), {
+    type:'bar',
+    data:{
+      labels: yrs,
+      datasets:[{
+        label:'Revenue (PKR)',
+        data: revs,
+        backgroundColor: yrs.map((_,i)=>i===yrs.length-1?'#c9922a':'#1a3a5c'),
+        borderRadius:5
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmtM(ctx.raw)}}},
+      scales:{
+        x:{grid:{display:false}},
+        y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{callback:v=>fmtM(v)}}
+      }
+    }
+  });
+
+  histCharts.yearlyCust = new Chart(
+    document.getElementById('chartHistYearlyCust').getContext('2d'), {
+    type:'bar',
+    data:{
+      labels: yrs,
+      datasets:[{
+        label:'Customers',
+        data: custs,
+        backgroundColor: yrs.map((_,i)=>i===yrs.length-1?'#3daa6e':'#254d7a'),
+        borderRadius:5
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.raw.toLocaleString('en-PK')}}},
+      scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{callback:v=>v>=1000?Math.round(v/1000)+'K':v}}}
+    }
+  });
+}
+
+function buildHistYearlyTable() {
+  const table = document.getElementById('hist-yearly-table');
+  const yrs=HIST.years, revs=HIST.yearlyRev, custs=HIST.yearlyCust, arpc=HIST.yearlyArpc;
+  let html = '<thead><tr><th>Year</th><th>Total Revenue (PKR)</th><th>Customers</th><th>ARPC (PKR)</th><th>YoY Revenue</th></tr></thead><tbody>';
+  yrs.forEach((y,i) => {
+    const rev=revs[i], cust=custs[i], a=arpc[i];
+    const yoy = i>0&&revs[i-1]>0 ? ((rev-revs[i-1])/revs[i-1]*100).toFixed(1) : '—';
+    const yoyCls = parseFloat(yoy)>0?'color:var(--green2)':parseFloat(yoy)<0?'color:var(--red)':'';
+    html+=`<tr>
+      <td><strong>${y}</strong></td>
+      <td>PKR ${(rev/1e6).toFixed(1)}M</td>
+      <td>${cust.toLocaleString('en-PK')}</td>
+      <td>${a?'PKR '+a.toLocaleString('en-PK'):'—'}</td>
+      <td style="${yoyCls}">${yoy!=='—'?(parseFloat(yoy)>0?'▲ ':'▼ ')+Math.abs(yoy)+'%':'—'}</td>
+    </tr>`;
+  });
+  html+='</tbody>';
+  table.innerHTML=html;
+}
+
+function buildHistMonthlyCharts() {
+  destroyHist('monthlyRev'); destroyHist('monthlyCust');
+
+  const labels = HIST.months.map(m=>{
+    const [y,mo]=m.split('-');
+    const names=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return names[parseInt(mo)-1]+' '+y.slice(2);
+  });
+
+  histCharts.monthlyRev = new Chart(
+    document.getElementById('chartHistMonthlyRev').getContext('2d'), {
+    type:'line',
+    data:{
+      labels,
+      datasets:[{
+        label:'Monthly Revenue',data:HIST.revTotal,
+        borderColor:'#c9922a',backgroundColor:'rgba(201,146,42,0.08)',
+        fill:true,tension:0.3,pointRadius:0,pointHoverRadius:4,borderWidth:1.5
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmtM(ctx.raw)}}},
+      scales:{
+        x:{grid:{display:false},ticks:{maxTicksLimit:18,font:{size:10}}},
+        y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{callback:v=>fmtM(v)}}
+      }
+    }
+  });
+
+  histCharts.monthlyCust = new Chart(
+    document.getElementById('chartHistMonthlyCust').getContext('2d'), {
+    type:'line',
+    data:{
+      labels,
+      datasets:[{
+        label:'Monthly Customers',data:HIST.custTotal,
+        borderColor:'#254d7a',backgroundColor:'rgba(37,77,122,0.08)',
+        fill:true,tension:0.3,pointRadius:0,pointHoverRadius:4,borderWidth:1.5
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.raw.toLocaleString('en-PK')}}},
+      scales:{
+        x:{grid:{display:false},ticks:{maxTicksLimit:18,font:{size:10}}},
+        y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{callback:v=>v>=1000?Math.round(v/1000)+'K':v}}
+      }
+    }
+  });
+}
+
+function buildHistRevCharts() {
+  destroyHist('revPie'); destroyHist('revStacked');
+
+  const cats = HIST.categories.revenue;
+  // All-time totals per category
+  const totals = cats.map(c=>{
+    const arr=HIST.revByCat[c]||[];
+    return arr.reduce((s,v)=>s+(v||0),0);
+  });
+
+  histCharts.revPie = new Chart(
+    document.getElementById('chartHistRevPie').getContext('2d'), {
+    type:'doughnut',
+    data:{
+      labels:cats,
+      datasets:[{data:totals,backgroundColor:HIST_COLORS,borderWidth:2,borderColor:'#fff'}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'right',labels:{font:{size:11},boxWidth:12}},
+        tooltip:{callbacks:{label:ctx=>ctx.label+': '+fmtM(ctx.raw)}}
+      }
+    }
+  });
+
+  // Stacked annual by category
+  const yrs = HIST.years;
+  histCharts.revStacked = new Chart(
+    document.getElementById('chartHistRevStacked').getContext('2d'), {
+    type:'bar',
+    data:{
+      labels: yrs,
+      datasets: cats.map((c,i)=>{
+        // Sum monthly values per year
+        const yearVals = yrs.map(y=>{
+          const arr=HIST.revByCat[c]||[];
+          return HIST.months.reduce((sum,m,mi)=>{
+            return m.startsWith(y)?sum+(arr[mi]||0):sum;
+          },0);
+        });
+        return {label:c,data:yearVals,backgroundColor:HIST_COLORS[i],stack:'s',borderWidth:0};
+      })
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmtM(ctx.raw)}}},
+      scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:'rgba(0,0,0,0.05)'},ticks:{callback:v=>fmtM(v)}}}
+    }
+  });
+}
+
+function buildHistCustCharts() {
+  destroyHist('custPie'); destroyHist('custStacked');
+
+  const cats = HIST.categories.customers;
+  const totals = cats.map(c=>{
+    const arr=HIST.custByCat[c]||[];
+    return arr.reduce((s,v)=>s+(v||0),0);
+  });
+
+  histCharts.custPie = new Chart(
+    document.getElementById('chartHistCustPie').getContext('2d'), {
+    type:'doughnut',
+    data:{
+      labels:cats,
+      datasets:[{data:totals,backgroundColor:HIST_COLORS,borderWidth:2,borderColor:'#fff'}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'right',labels:{font:{size:11},boxWidth:12}},
+        tooltip:{callbacks:{label:ctx=>ctx.label+': '+ctx.raw.toLocaleString('en-PK')}}
+      }
+    }
+  });
+
+  const yrs = HIST.years;
+  histCharts.custStacked = new Chart(
+    document.getElementById('chartHistCustStacked').getContext('2d'), {
+    type:'bar',
+    data:{
+      labels: yrs,
+      datasets: cats.map((c,i)=>{
+        const yearVals = yrs.map(y=>{
+          const arr=HIST.custByCat[c]||[];
+          return HIST.months.reduce((sum,m,mi)=>{
+            return m.startsWith(y)?sum+(arr[mi]||0):sum;
+          },0);
+        });
+        return {label:c,data:yearVals,backgroundColor:HIST_COLORS[i],stack:'s',borderWidth:0};
+      })
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+Math.round(ctx.raw).toLocaleString('en-PK')}}},
+      scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:'rgba(0,0,0,0.05)'},ticks:{callback:v=>v>=1000?Math.round(v/1000)+'K':v}}}
+    }
+  });
+}
+
+function buildHistArpcCharts() {
+  destroyHist('arpc'); destroyHist('revCust');
+
+  const yrs = HIST.years.filter((_,i)=>HIST.yearlyArpc[i]>0);
+  const arpcVals = yrs.map(y=>HIST.yearlyArpc[HIST.years.indexOf(y)]);
+
+  histCharts.arpc = new Chart(
+    document.getElementById('chartHistArpc').getContext('2d'), {
+    type:'line',
+    data:{
+      labels:yrs,
+      datasets:[{
+        label:'ARPC (PKR)',data:arpcVals,
+        borderColor:'#c9922a',backgroundColor:'rgba(201,146,42,0.1)',
+        fill:true,tension:0.4,pointRadius:5,pointHoverRadius:7,
+        pointBackgroundColor:'#c9922a',borderWidth:2
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'PKR '+ctx.raw.toLocaleString('en-PK')}}},
+      scales:{
+        x:{grid:{display:false}},
+        y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{callback:v=>'PKR '+v.toLocaleString('en-PK')}}
+      }
+    }
+  });
+
+  histCharts.revCust = new Chart(
+    document.getElementById('chartHistRevCust').getContext('2d'), {
+    type:'bar',
+    data:{
+      labels:HIST.years,
+      datasets:[
+        {label:'Revenue (PKR M)',data:HIST.yearlyRev.map(v=>Math.round(v/1e6)),backgroundColor:'rgba(201,146,42,0.8)',borderRadius:4,yAxisID:'y'},
+        {label:'Customers',data:HIST.yearlyCust,backgroundColor:'rgba(37,77,122,0.8)',borderRadius:4,yAxisID:'y2'}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:11}}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+ctx.raw.toLocaleString('en-PK')}}},
+      scales:{
+        x:{grid:{display:false}},
+        y:{position:'left',grid:{color:'rgba(0,0,0,0.05)'},ticks:{callback:v=>v+'M'}},
+        y2:{position:'right',grid:{display:false},ticks:{callback:v=>v>=1000?Math.round(v/1000)+'K':v}}
+      }
+    }
+  });
+}
+
 </script>
 </body>
 </html>
