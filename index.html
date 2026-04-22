@@ -346,6 +346,41 @@
   .yoy-delta.down { background: #fde8e8; color: var(--red); }
   .yoy-delta.flat { background: var(--cream); color: var(--muted); }
   .yoy-source { font-size: 10px; color: var(--muted); margin-top: 6px; font-style: italic; }
+
+  /* Events & Impact tab */
+  .event-cat-badge {
+    display: inline-block; padding: 2px 9px; border-radius: 10px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;
+  }
+  .event-cat-price       { background: #e8f0fb; color: var(--mjsr-blue); }
+  .event-cat-operational { background: #edf0f2; color: var(--ops-slate); }
+  .event-cat-marketing   { background: #fdf6e3; color: #a07010; }
+  .event-cat-weather     { background: #e6f4ea; color: var(--gv-green); }
+  .event-cat-custom      { background: #f3e8fb; color: #7c3aad; }
+
+  .event-dir-increase { color: var(--green); font-weight: 700; }
+  .event-dir-decrease { color: var(--red);   font-weight: 700; }
+  .event-dir-neutral  { color: var(--muted); font-weight: 700; }
+
+  .event-row {
+    display: grid; grid-template-columns: 100px 110px 110px 1fr auto auto;
+    gap: 12px; align-items: center; padding: 12px 16px;
+    border-bottom: 1px solid var(--border); cursor: pointer;
+    transition: background 0.15s;
+  }
+  .event-row:hover { background: var(--cream); }
+  .event-row.selected { background: #e8f0fb; border-left: 3px solid var(--mjsr-blue); }
+
+  .impact-window {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px; margin-bottom: 20px;
+  }
+  .impact-kpi {
+    background: var(--white); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px;
+  }
+  .impact-kpi-label { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+  .impact-kpi-val   { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--navy); }
 </style>
 </head>
 <body>
@@ -373,6 +408,7 @@
     <button class="sub-tab locked-tab" id="tab-log"       onclick="requirePin('log',this)">Log</button>
     <button class="sub-tab locked-tab" id="tab-import"    onclick="requirePin('import',this)">📥 Import History</button>
     <button class="sub-tab locked-tab" id="tab-historical" onclick="requirePin('historical',this)">📊 Historical Intel</button>
+    <button class="sub-tab locked-tab" id="tab-events"     onclick="requirePin('events',this)">🎯 Events &amp; Impact</button>
     <button class="sub-tab locked-tab" id="tab-admin"     onclick="requirePin('admin',this)">Admin</button>
   </div>
 </div>
@@ -964,6 +1000,90 @@
     </div>
   </div>
 </div>
+<!-- ══════════════════════════════════════════ EVENTS & IMPACT -->
+<div class="page" id="page-events">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Events &amp; Impact</div>
+      <div class="page-sub">Log key decisions and measure their effect on visitor footfall</div>
+    </div>
+    <button class="btn btn-gold btn-sm" onclick="showEventForm()">+ Log Event</button>
+  </div>
+
+  <!-- Add event form (hidden by default) -->
+  <div class="card" id="event-form-card" style="display:none; margin-bottom:20px;">
+    <div class="card-header"><span class="card-title">Log New Event</span><span class="card-badge badge-gold">PIN Verified</span></div>
+    <div class="card-body">
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:14px; margin-bottom:14px;">
+        <div>
+          <label class="form-label">Date of Event</label>
+          <input type="date" class="form-input" id="evt-date">
+        </div>
+        <div>
+          <label class="form-label">Category</label>
+          <select class="form-input" id="evt-cat">
+            <option value="Price Change">Price Change</option>
+            <option value="Operational">Operational</option>
+            <option value="Marketing">Marketing / Promotion</option>
+            <option value="Weather">Weather</option>
+            <option value="Custom">Custom</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Activity Affected</label>
+          <select class="form-input" id="evt-activity">
+            <option value="All Activities">All Activities</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Expected Direction</label>
+          <select class="form-input" id="evt-dir">
+            <option value="Increase">↑ Increase</option>
+            <option value="Decrease">↓ Decrease</option>
+            <option value="Neutral">→ Neutral</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr auto; gap:14px; align-items:end;">
+        <div>
+          <label class="form-label">Description</label>
+          <input type="text" class="form-input" id="evt-desc" placeholder="e.g. Chairlift price increased from PKR 1,900 to PKR 2,200">
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-primary" onclick="saveEvent()">Save Event</button>
+          <button class="btn btn-outline" onclick="hideEventForm()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Two-panel layout: event list left, impact right -->
+  <div style="display:grid; grid-template-columns:420px 1fr; gap:20px; align-items:start;">
+
+    <!-- Event list -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Event Log</span>
+        <span class="card-badge badge-navy" id="events-count-badge">0 events</span>
+      </div>
+      <div id="events-list" style="max-height:600px; overflow-y:auto;">
+        <div style="padding:32px; text-align:center; color:var(--muted); font-size:13px;">
+          No events logged yet. Click <strong>+ Log Event</strong> to add your first.
+        </div>
+      </div>
+    </div>
+
+    <!-- Impact panel -->
+    <div id="impact-panel">
+      <div class="card" style="padding:32px; text-align:center; color:var(--muted);">
+        <div style="font-size:32px; margin-bottom:12px;">👆</div>
+        <div style="font-weight:600; margin-bottom:6px;">Select an event to see its impact</div>
+        <div style="font-size:13px;">Click any event on the left to analyse visitor trends before and after</div>
+      </div>
+    </div>
+
+  </div>
+</div>
 
 </div><!-- /main -->
 
@@ -1051,6 +1171,7 @@ function showPage(id, btn) {
   if (id==='import')                 loadImportStatus();
   if (id==='admin')                  loadPrices();
   if (id==='historical')             loadHistorical();
+  if (id==='events')                 loadEventsPage();
 }
 
 // ─── CONNECTION STATUS ────────────────────────────────────────
@@ -2344,7 +2465,284 @@ document.addEventListener('DOMContentLoaded', () => {
   checkConnection();
 });
 
-// ─── HISTORICAL INTELLIGENCE DATA ────────────────────────────
+// ─── EVENTS & IMPACT ─────────────────────────────────────────
+
+const EVENT_CATS = {
+  'Price Change':  'event-cat-price',
+  'Operational':   'event-cat-operational',
+  'Marketing':     'event-cat-marketing',
+  'Weather':       'event-cat-weather',
+  'Custom':        'event-cat-custom'
+};
+
+let eventsData       = [];   // loaded from sheet
+let selectedEventIdx = null;
+let impactChart      = null;
+
+// ── Page init ────────────────────────────────────────────────
+async function loadEventsPage() {
+  // Populate activity selector
+  const sel = document.getElementById('evt-activity');
+  if (sel && sel.options.length === 1) {
+    ACTIVITIES.forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a; opt.textContent = a.replace('GV ','GV — ');
+      sel.appendChild(opt);
+    });
+  }
+  // Set default date to today
+  const di = document.getElementById('evt-date');
+  if (di && !di.value) di.value = new Date().toISOString().split('T')[0];
+
+  await fetchEvents();
+}
+
+// ── GAS I/O ──────────────────────────────────────────────────
+async function fetchEvents() {
+  try {
+    const res = await gasPost({ action: 'GET_EVENTS' });
+    if (res.success) {
+      eventsData = res.events || [];
+      renderEventsList();
+    } else {
+      eventsData = [];
+      renderEventsList();
+    }
+  } catch(e) {
+    eventsData = [];
+    renderEventsList();
+  }
+}
+
+async function saveEvent() {
+  const date     = document.getElementById('evt-date').value;
+  const cat      = document.getElementById('evt-cat').value;
+  const activity = document.getElementById('evt-activity').value;
+  const dir      = document.getElementById('evt-dir').value;
+  const desc     = document.getElementById('evt-desc').value.trim();
+
+  if (!date)  { showToast('Please select a date', 'error'); return; }
+  if (!desc)  { showToast('Please add a description', 'error'); return; }
+
+  try {
+    const res = await gasPost({ action: 'SAVE_EVENT', pin: PORTAL_PIN,
+      event: { date, category: cat, activity, direction: dir, description: desc }
+    });
+    if (res.success) {
+      showToast('✓ Event saved', 'success');
+      hideEventForm();
+      await fetchEvents();
+      // Also refresh dashboard overlay
+      if (dashData) buildDailyVisitorsChart(dashData.daily, dailyRange);
+    } else {
+      showToast('Error: ' + res.error, 'error');
+    }
+  } catch(e) {
+    showToast('Network error saving event', 'error');
+  }
+}
+
+// ── UI helpers ───────────────────────────────────────────────
+function showEventForm() {
+  document.getElementById('event-form-card').style.display = 'block';
+  document.getElementById('evt-desc').focus();
+}
+function hideEventForm() {
+  document.getElementById('event-form-card').style.display = 'none';
+  document.getElementById('evt-desc').value = '';
+}
+
+// ── Render event list ─────────────────────────────────────────
+function renderEventsList() {
+  const list  = document.getElementById('events-list');
+  const badge = document.getElementById('events-count-badge');
+  if (badge) badge.textContent = eventsData.length + ' event' + (eventsData.length !== 1 ? 's' : '');
+
+  if (!eventsData.length) {
+    list.innerHTML = `<div style="padding:32px; text-align:center; color:var(--muted); font-size:13px;">
+      No events logged yet. Click <strong>+ Log Event</strong> to add your first.</div>`;
+    return;
+  }
+
+  // Sort newest first
+  const sorted = [...eventsData].sort((a,b) => b.date.localeCompare(a.date));
+  list.innerHTML = sorted.map((ev, i) => {
+    const catCls = EVENT_CATS[ev.category] || 'event-cat-custom';
+    const dirSymbol = ev.direction === 'Increase' ? '↑' : ev.direction === 'Decrease' ? '↓' : '→';
+    const dirCls    = ev.direction === 'Increase' ? 'event-dir-increase' : ev.direction === 'Decrease' ? 'event-dir-decrease' : 'event-dir-neutral';
+    const isSelected = selectedEventIdx === i;
+    return `<div class="event-row ${isSelected ? 'selected' : ''}" onclick="selectEvent(${i})">
+      <div style="font-size:13px; font-weight:600; color:var(--navy);">${ev.date}</div>
+      <div><span class="event-cat-badge ${catCls}">${ev.category}</span></div>
+      <div style="font-size:11px; color:var(--muted);">${ev.activity || 'All'}</div>
+      <div style="font-size:13px; color:var(--text);">${ev.description}</div>
+      <div class="${dirCls}" style="font-size:16px;">${dirSymbol}</div>
+      <div style="font-size:11px; color:var(--muted); cursor:pointer;" onclick="deleteEvent(event, ${i})">✕</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Select event and render impact ────────────────────────────
+function selectEvent(idx) {
+  selectedEventIdx = idx;
+  renderEventsList(); // re-render to show selection
+
+  const sorted = [...eventsData].sort((a,b) => b.date.localeCompare(a.date));
+  const ev = sorted[idx];
+  if (!ev || !dashData) return;
+
+  const eventDate = ev.date;
+  const addDays   = (d, n) => { const dt = new Date(d+'T00:00:00'); dt.setDate(dt.getDate()+n); return dt.toISOString().split('T')[0]; };
+
+  // 14 days before, 30 days after
+  const windowStart = addDays(eventDate, -14);
+  const windowEnd   = addDays(eventDate,  30);
+
+  // Get daily visitor data in window
+  const windowRows = dashData.daily.filter(r => r.date >= windowStart && r.date <= windowEnd);
+  const beforeRows = windowRows.filter(r => r.date <  eventDate);
+  const afterRows  = windowRows.filter(r => r.date >  eventDate);
+
+  const avgBefore = beforeRows.length > 0 ? Math.round(beforeRows.reduce((s,r)=>s+r.visitors,0) / beforeRows.length) : 0;
+  const avgAfter  = afterRows.length  > 0 ? Math.round(afterRows.reduce((s,r)=>s+r.visitors,0)  / afterRows.length)  : 0;
+  const delta     = avgBefore > 0 ? ((avgAfter - avgBefore) / avgBefore * 100).toFixed(1) : null;
+  const deltaCls  = delta === null ? 'flat' : parseFloat(delta) > 0 ? 'up' : parseFloat(delta) < 0 ? 'down' : 'flat';
+  const deltaStr  = delta === null ? '—' : (parseFloat(delta) > 0 ? '▲ ' : '▼ ') + Math.abs(delta) + '%';
+
+  // Build chart data — fill gaps with null for missing days
+  const labels = [], data = [];
+  for (let d = new Date(windowStart+'T00:00:00'); d <= new Date(windowEnd+'T00:00:00'); d.setDate(d.getDate()+1)) {
+    const ds  = d.toISOString().split('T')[0];
+    const row = windowRows.find(r => r.date === ds);
+    labels.push(ds.slice(5)); // MM-DD
+    data.push(row ? row.visitors : null);
+  }
+
+  // Event index in labels array
+  const evLabelIdx = labels.indexOf(eventDate.slice(5));
+
+  // Background colors — before=cream, event=gold, after=navy
+  const bgColors = labels.map((l, i) => {
+    if (i === evLabelIdx) return '#c9922a';
+    return l < eventDate.slice(5) ? 'rgba(201,146,42,0.2)' : '#1a3a5c';
+  });
+
+  // Build impact panel HTML
+  const catCls = EVENT_CATS[ev.category] || 'event-cat-custom';
+  document.getElementById('impact-panel').innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-header">
+        <span class="card-title">Impact Analysis</span>
+        <span class="card-badge ${ev.direction==='Increase'?'badge-gold':ev.direction==='Decrease'?'badge-red':'badge-navy'}">${ev.direction}</span>
+      </div>
+      <div class="card-body">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid var(--border);">
+          <span class="event-cat-badge ${catCls}">${ev.category}</span>
+          <span style="font-size:14px; font-weight:600; color:var(--navy);">${ev.description}</span>
+          <span style="font-size:13px; color:var(--muted);">· ${ev.date} · ${ev.activity}</span>
+        </div>
+        <div class="impact-window">
+          <div class="impact-kpi">
+            <div class="impact-kpi-label">Avg Daily Visitors (14 days before)</div>
+            <div class="impact-kpi-val">${avgBefore > 0 ? fmt(avgBefore) : 'No data'}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;">${beforeRows.length} days with data</div>
+          </div>
+          <div class="impact-kpi">
+            <div class="impact-kpi-label">Avg Daily Visitors (30 days after)</div>
+            <div class="impact-kpi-val">${avgAfter > 0 ? fmt(avgAfter) : 'No data'}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;">${afterRows.length} days with data</div>
+          </div>
+          <div class="impact-kpi" style="border-top:3px solid var(--${deltaCls==='up'?'green2':deltaCls==='down'?'red':'muted'});">
+            <div class="impact-kpi-label">Change in Footfall</div>
+            <div class="impact-kpi-val" style="color:var(--${deltaCls==='up'?'green2':deltaCls==='down'?'red':'muted'})">${deltaStr}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;">vs 14-day pre-event avg</div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">
+          Visitor trend: 14 days before (gold) → Event date (orange bar) → 30 days after (navy)
+        </div>
+        <div style="height:240px;"><canvas id="chartImpact"></canvas></div>
+        ${afterRows.length < 7 ? '<div style="margin-top:10px;font-size:12px;color:var(--muted);font-style:italic;">⚠ Less than 7 days of post-event data — impact analysis will strengthen as more submissions are added.</div>' : ''}
+      </div>
+    </div>`;
+
+  // Draw impact chart
+  if (impactChart) { impactChart.destroy(); impactChart = null; }
+  const ctx = document.getElementById('chartImpact');
+  if (!ctx) return;
+  impactChart = new Chart(ctx.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Daily Visitors',
+        data,
+        backgroundColor: bgColors,
+        borderRadius: 3,
+        spanGaps: true
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => 'Visitors: ' + (ctx.raw !== null ? fmt(ctx.raw) : 'No data') }},
+        annotation: evLabelIdx >= 0 ? {
+          annotations: {
+            eventLine: {
+              type: 'line', xMin: evLabelIdx, xMax: evLabelIdx,
+              borderColor: '#c9922a', borderWidth: 2, borderDash: [5,3],
+              label: { content: 'Event', enabled: true, position: 'start',
+                backgroundColor: '#c9922a', color: '#fff', font: { size: 10 }}
+            }
+          }
+        } : {}
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 15, font: { size: 10 }}},
+        y: { grid: { color: 'rgba(0,0,0,0.05)' }}
+      }
+    }
+  });
+}
+
+async function deleteEvent(e, idx) {
+  e.stopPropagation();
+  if (!confirm('Delete this event?')) return;
+  const sorted = [...eventsData].sort((a,b) => b.date.localeCompare(a.date));
+  const ev = sorted[idx];
+  try {
+    const res = await gasPost({ action: 'DELETE_EVENT', pin: PORTAL_PIN, event: ev });
+    if (res.success) {
+      showToast('Event deleted', 'success');
+      selectedEventIdx = null;
+      document.getElementById('impact-panel').innerHTML = `<div class="card" style="padding:32px;text-align:center;color:var(--muted);">
+        <div style="font-size:32px;margin-bottom:12px;">👆</div>
+        <div style="font-weight:600;margin-bottom:6px;">Select an event to see its impact</div>
+        <div style="font-size:13px;">Click any event on the left to analyse visitor trends before and after</div></div>`;
+      await fetchEvents();
+    }
+  } catch(e) { showToast('Error deleting event', 'error'); }
+}
+
+// ── Dashboard visitor chart event overlay ─────────────────────
+// Adds vertical annotation lines for events on the daily visitor chart
+function getEventAnnotations(days) {
+  if (!eventsData.length || !days) return {};
+  const annotations = {};
+  eventsData.forEach((ev, i) => {
+    const idx = days.findIndex(r => r.date === ev.date);
+    if (idx < 0) return;
+    const catColor = { 'Price Change':'#c9922a', 'Operational':'#3d4f5c',
+      'Marketing':'#a07010', 'Weather':'#2d6b3c', 'Custom':'#7c3aad' };
+    annotations['evt_'+i] = {
+      type: 'line', xMin: idx, xMax: idx,
+      borderColor: catColor[ev.category] || '#c9922a',
+      borderWidth: 1.5, borderDash: [4,3],
+    };
+  });
+  return annotations;
+}
 // Data is fetched live from the Historical_Data sheet tab
 // Falls back to embedded data if sheet is unavailable
 
