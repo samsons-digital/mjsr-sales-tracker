@@ -3460,16 +3460,11 @@ function buildWxCorrelation() {
 
   // Buckets: group by rainfall intensity, avg customers per season
   const buckets = [
-    { label:'Dry
-(<5mm)', filter: p=>p.mm<5 },
-    { label:'Low
-(5-30mm)', filter: p=>p.mm>=5&&p.mm<30 },
-    { label:'Moderate
-(30-100mm)', filter: p=>p.mm>=30&&p.mm<100 },
-    { label:'Heavy
-(100-300mm)', filter: p=>p.mm>=100&&p.mm<300 },
-    { label:'Very Heavy
-(>300mm)', filter: p=>p.mm>=300 }
+    { label:'Dry (<5mm)', filter: p=>p.mm<5 },
+    { label:'Low (5-30mm)', filter: p=>p.mm>=5&&p.mm<30 },
+    { label:'Moderate (30-100mm)', filter: p=>p.mm>=30&&p.mm<100 },
+    { label:'Heavy (100-300mm)', filter: p=>p.mm>=100&&p.mm<300 },
+    { label:'Very Heavy (>300mm)', filter: p=>p.mm>=300 }
   ];
 
   const avg = (arr) => arr.length>0 ? Math.round(arr.reduce((s,v)=>s+v,0)/arr.length) : 0;
