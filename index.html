@@ -1210,27 +1210,70 @@
 // ─── CONFIG ───────────────────────────────────────────────────
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbz9FfSujFbcfCVcNck-if-e59mDxX0Z7sOYWB23CXaBucA7XofniCUC2ciy6x80a6y7iA/exec';
 
-// MJSR activities (main resort)
-const MJSR_ACTIVITIES = [
-  'Chairlift','Zipline','Giant Swing','Slingshot',
-  'Skiing','Kids Climbing Wall','Leap of Faith'
+// All activities from Acvivites.xlsx
+// Format: [name, site, weekday, weekend, active]
+const ALL_ACTIVITY_LIST = [
+  // MJSR Active
+  ['Chairlift',                         'MJSR', 1400, 1900, true],
+  ['Express Chairlift',                 'MJSR', 1800, 2400, true],
+  ['Chairlift Top',                     'MJSR',  900, 1200, true],
+  ['Zipline',                           'MJSR', 2000, 2800, true],
+  ['Zipline Top',                       'MJSR', 2000, 2800, true],
+  ['Giant Swing',                       'MJSR', 2000, 2000, true],
+  ['Giant Swing + Chairlift',           'MJSR', 4600, 4600, true],
+  ['Giant Swing + Chairlift + Zipline', 'MJSR', 7400, 7400, true],
+  ['Jumping Castle',                    'MJSR',  600,  600, true],
+  ['Trampoline',                        'MJSR',  600,  600, true],
+  ['Horse Riding',                      'MJSR',  950,  950, true],
+  ['Archery',                           'MJSR',  600,  600, true],
+  ['Leap of Faith',                     'MJSR',  600,  600, true],
+  ['Tubby',                             'MJSR',  600,  600, true],
+  ['Rope Course',                       'MJSR',  600,  600, true],
+  ['Skiing',                            'MJSR', 3000, 3000, true],
+  ['Kids Climbing Wall',                'MJSR',  800,  800, true],
+  // MJSR Inactive
+  ['Slingshot',                         'MJSR', 5000, 5000, false],
+  ['Wall Climbing',                     'MJSR',  600,  600, false],
+  ['VR Gaming',                         'MJSR',  600,  600, false],
+  ['Mountain Bike',                     'MJSR', 1500, 1500, false],
+  ['Grass Ski',                         'MJSR', 1000, 1500, false],
+  ['Hiking Groups',                     'MJSR', 3400, 3400, false],
+  ['Gutt Valley + Green Valley',        'MJSR', 9100, 9100, false],
+  ['Swat Culture Sites',                'MJSR',22600,22600, false],
+  // GV Active
+  ['GV Ferris Wheel',                   'GV',   500,  500, true],
+  ['GV Kids Zipline',                   'GV',   500,  500, true],
+  ['GV Horse Riding',                   'GV',   500,  500, true],
+  ['GV Tubby Lanes',                    'GV',   300,  300, true],
+  ['GV Jumping Castle',                 'GV',   300,  300, true],
+  ['GV Trampoline',                     'GV',   300,  300, true],
+  ['GV Archery',                        'GV',   300,  300, true],
+  // GV Inactive
+  ['GV Flying Carpet',                  'GV',   500,  500, false],
+  ['GV Dragon',                         'GV',   500,  500, false],
 ];
-// GV (Green Valley) activities
-const GV_ACTIVITIES = [
-  'GV Horse Riding','GV Ferris Wheel','GV Kids Zipline','GV Tubby Lanes'
-];
-// All activities combined (used for Sheet columns — order matters)
+
+// Core tracked activities (sheet columns)
+const MJSR_ACTIVITIES = ALL_ACTIVITY_LIST
+  .filter(a => a[1]==='MJSR' && a[4])
+  .map(a => a[0]);
+
+const GV_ACTIVITIES = ALL_ACTIVITY_LIST
+  .filter(a => a[1]==='GV' && a[4])
+  .map(a => a[0]);
+
 const ACTIVITIES = [...MJSR_ACTIVITIES, ...GV_ACTIVITIES];
 
-const DEFAULT_PRICES = {
-  'Chairlift':1900,'Zipline':5000,'Giant Swing':2500,'Slingshot':2000,
-  'Skiing':3000,'Kids Climbing Wall':800,'Leap of Faith':1200,
-  'GV Horse Riding':500,'GV Ferris Wheel':500,'GV Kids Zipline':500,'GV Tubby Lanes':300
-};
+// Build DEFAULT_PRICES from the list
+const DEFAULT_PRICES = {};
+ALL_ACTIVITY_LIST.forEach(a => { DEFAULT_PRICES[a[0]] = a[2]; }); // weekday as default
 
 const ACT_COLORS = [
-  '#0f2340','#1a3a5c','#254d7a','#c9922a','#e8b04a','#2d7a4e','#3daa6e',
-  '#166534','#15803d','#16a34a','#4ade80'
+  '#0f2340','#1a3a5c','#254d7a','#2e5f9a','#3b7fc4',
+  '#c9922a','#e8b04a','#f5c842','#d4a017','#a07010',
+  '#2d7a4e','#3daa6e','#50c878','#166534','#15803d',
+  '#7c3aad','#9b59b6','#6b21a8','#e05c3a','#dc2626',
+  '#0891b2','#0e7490','#64748b','#475569'
 ];
 
 let dashData       = null;
@@ -2576,28 +2619,44 @@ function downloadTemplate() {
 // ─── ADMIN ───────────────────────────────────────────────────
 async function loadPrices() {
   try {
-    const data=await gasPost({action:'GET_PRICES'});
-    if(!data.success) throw new Error();
-    // Show all known activities: MJSR + GV + any custom added
-    const allActs=[...ACTIVITIES,...customActivities.map(c=>c.name)];
-    document.getElementById('price-body').innerHTML=allActs.map(a=>{
-      const p=data.prices[a]||{weekday:DEFAULT_PRICES[a]||0,weekend:DEFAULT_PRICES[a]||0};
-      const k=a.replace(/\s/g,'_');
-      const isGV=GV_ACTIVITIES.includes(a)||a.startsWith('GV ');
-      const siteTag=isGV
-        ?`<span style="font-size:10px;background:#e3f5ec;color:var(--green);padding:1px 6px;border-radius:8px;margin-left:6px;font-weight:600;">GV</span>`
-        :`<span style="font-size:10px;background:#e8eef5;color:var(--navy2);padding:1px 6px;border-radius:8px;margin-left:6px;font-weight:600;">MJSR</span>`;
-      const displayName = a.replace(/^GV /,'');
-      return `<tr><td><strong>${displayName}</strong>${siteTag}</td><td><input type="number" min="0" id="wd-${k}" value="${p.weekday}"></td><td><input type="number" min="0" id="we-${k}" value="${p.weekend}"></td></tr>`;
+    const data = await gasPost({action:'GET_PRICES'});
+    if (!data.success) throw new Error();
+    // Show all known activities from ALL_ACTIVITY_LIST
+    const allNames = ALL_ACTIVITY_LIST.map(a => a[0]);
+    document.getElementById('price-body').innerHTML = ALL_ACTIVITY_LIST.map(a => {
+      const [name, site, defaultWd, defaultWe, defaultActive] = a;
+      const p = data.prices[name] || {weekday: defaultWd, weekend: defaultWe, active: defaultActive};
+      const k = name.replace(/\s/g,'_').replace(/\+/g,'_').replace(/\//g,'_');
+      const isGV = site === 'GV';
+      const siteTag = isGV
+        ? `<span style="font-size:10px;background:#e3f5ec;color:var(--green);padding:1px 6px;border-radius:8px;margin-left:6px;font-weight:600;">GV</span>`
+        : `<span style="font-size:10px;background:#e8eef5;color:var(--navy2);padding:1px 6px;border-radius:8px;margin-left:6px;font-weight:600;">MJSR</span>`;
+      const activeBadge = p.active
+        ? `<span style="font-size:9px;background:#e3f5ec;color:var(--green);padding:1px 5px;border-radius:6px;margin-left:4px;">Active</span>`
+        : `<span style="font-size:9px;background:#f3f4f6;color:var(--muted);padding:1px 5px;border-radius:6px;margin-left:4px;">Inactive</span>`;
+      const displayName = name.replace(/^GV /,'');
+      return `<tr style="${!p.active ? 'opacity:0.6' : ''}">
+        <td><strong>${displayName}</strong>${siteTag}${activeBadge}</td>
+        <td><input type="number" min="0" id="wd-${k}" value="${p.weekday}"></td>
+        <td><input type="number" min="0" id="we-${k}" value="${p.weekend}"></td>
+      </tr>`;
     }).join('');
   } catch(e){document.getElementById('price-body').innerHTML='<tr><td colspan="3" class="no-data">Unable to load</td></tr>';}
 }
 
 async function savePrices() {
-  const allActs=[...ACTIVITIES,...customActivities.map(c=>c.name)];
-  const prices=allActs.map(a=>({activity:a,weekday:Number(document.getElementById('wd-'+a.replace(/\s/g,'_'))?.value||0),weekend:Number(document.getElementById('we-'+a.replace(/\s/g,'_'))?.value||0)}));
-  try{const data=await gasPost({action:'UPDATE_PRICES',pin:'1234',prices});showToast(data.success?'✓ Prices saved':'Error: '+data.error,data.success?'success':'error');}
-  catch(e){showToast('Error saving prices','error');}
+  const prices = ALL_ACTIVITY_LIST.map(a => {
+    const k = a[0].replace(/\s/g,'_').replace(/\+/g,'_').replace(/\//g,'_');
+    return {
+      activity: a[0],
+      weekday:  Number(document.getElementById('wd-'+k)?.value || 0),
+      weekend:  Number(document.getElementById('we-'+k)?.value || 0)
+    };
+  });
+  try {
+    const data = await gasPost({action:'UPDATE_PRICES', pin:'1234', prices});
+    showToast(data.success ? '✓ All prices saved' : 'Error: '+data.error, data.success?'success':'error');
+  } catch(e){ showToast('Error saving prices','error'); }
 }
 
 async function runBootstrap() {
