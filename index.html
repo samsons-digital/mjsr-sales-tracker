@@ -20,15 +20,61 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--text); min-height: 100vh; }
 
-  .nav { background: var(--navy); padding: 0 32px; display: flex; align-items: center; justify-content: space-between; height: 64px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(0,0,0,0.3); }
+  .nav { background: var(--navy); padding: 0 32px; display: flex; align-items: center; justify-content: space-between; height: 60px; position: sticky; top: 0; z-index: 101; box-shadow: 0 2px 8px rgba(0,0,0,0.25); }
   .nav-brand { display: flex; align-items: center; gap: 12px; }
-  .nav-logo  { width: 36px; height: 36px; background: var(--gold); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: 'DM Serif Display', serif; color: var(--navy); font-size: 18px; }
-  .nav-title { color: var(--white); font-family: 'DM Serif Display', serif; font-size: 18px; }
-  .nav-sub   { color: var(--gold3); font-size: 11px; font-weight: 300; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 1px; }
-  .nav-tabs  { display: flex; gap: 2px; }
-  .nav-tab   { color: rgba(255,255,255,0.65); padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; border: none; background: none; }
-  .nav-tab:hover  { color: white; background: rgba(255,255,255,0.08); }
-  .nav-tab.active { color: var(--gold2); background: rgba(201,146,42,0.15); }
+  .nav-logo  { width: 34px; height: 34px; background: var(--gold); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: 'DM Serif Display', serif; color: var(--navy); font-size: 17px; }
+  .nav-title { color: var(--white); font-family: 'DM Serif Display', serif; font-size: 17px; }
+  .nav-sub   { color: var(--gold3); font-size: 10px; font-weight: 300; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 1px; }
+
+  /* Connection status indicator */
+  .conn-status {
+    display: flex; align-items: center; gap: 7px;
+    padding: 5px 12px; border-radius: 20px;
+    font-size: 12px; font-weight: 600; cursor: default;
+    transition: all 0.3s;
+  }
+  .conn-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .conn-checking { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); }
+  .conn-checking .conn-dot { background: rgba(255,255,255,0.4); animation: pulse 1.2s ease-in-out infinite; }
+  .conn-connected { background: rgba(45,122,78,0.25); color: #6ee7a0; border: 1px solid rgba(45,122,78,0.4); }
+  .conn-connected .conn-dot { background: #3daa6e; }
+  .conn-disconnected { background: rgba(192,57,43,0.25); color: #f87171; border: 1px solid rgba(192,57,43,0.4); }
+  .conn-disconnected .conn-dot { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* Sub-nav tab strip */
+  .sub-nav {
+    background: var(--navy2);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    position: sticky; top: 60px; z-index: 100;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  }
+  .sub-nav-inner {
+    max-width: 1280px; margin: 0 auto;
+    padding: 0 24px;
+    display: flex; gap: 2px; align-items: center;
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .sub-nav-inner::-webkit-scrollbar { display: none; }
+  .sub-tab {
+    padding: 10px 18px; font-size: 13px; font-weight: 500;
+    color: rgba(255,255,255,0.6); background: none; border: none;
+    cursor: pointer; white-space: nowrap;
+    border-bottom: 3px solid transparent;
+    transition: all 0.18s; position: relative;
+  }
+  .sub-tab:hover { color: rgba(255,255,255,0.9); }
+  .sub-tab.active { color: var(--gold2); border-bottom-color: var(--gold2); }
+  .locked-tab::after {
+    content: '🔒';
+    font-size: 9px;
+    margin-left: 5px;
+    opacity: 0.5;
+  }
+  .locked-tab.unlocked::after { content: ''; }
 
   .main { max-width: 1280px; margin: 0 auto; padding: 32px 24px; }
   .page { display: none; }
@@ -260,22 +306,47 @@
       <div class="nav-sub">Activity &amp; Revenue Intelligence</div>
     </div>
   </div>
-  <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showPage('dashboard',this)">Dashboard</button>
-    <button class="nav-tab"        onclick="showPage('submit',this)">Submit Daily</button>
-    <button class="nav-tab"        onclick="showPage('trends',this)">Trends</button>
-    <button class="nav-tab"        onclick="showPage('log',this)">Log</button>
-    <button class="nav-tab"        onclick="showPage('import',this)">📥 Import History</button>
-    <button class="nav-tab"        onclick="showPage('admin',this)">Admin</button>
+  <div id="conn-status" class="conn-status conn-checking" title="Checking backend connection...">
+    <span class="conn-dot"></span>
+    <span class="conn-label">Checking...</span>
   </div>
 </nav>
 
+<!-- SUB-NAV TABS -->
+<div class="sub-nav">
+  <div class="sub-nav-inner">
+    <button class="sub-tab" id="tab-submit" onclick="showPage('submit',this)">✏️ Submit Daily</button>
+    <button class="sub-tab locked-tab" id="tab-dashboard" onclick="requirePin('dashboard',this)">Dashboard</button>
+    <button class="sub-tab locked-tab" id="tab-trends"    onclick="requirePin('trends',this)">Trends</button>
+    <button class="sub-tab locked-tab" id="tab-log"       onclick="requirePin('log',this)">Log</button>
+    <button class="sub-tab locked-tab" id="tab-import"    onclick="requirePin('import',this)">📥 Import History</button>
+    <button class="sub-tab locked-tab" id="tab-admin"     onclick="requirePin('admin',this)">Admin</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
+
+<!-- PIN MODAL -->
+<div id="pin-modal" style="display:none; position:fixed; inset:0; background:rgba(15,35,64,0.7); z-index:500; align-items:center; justify-content:center;">
+  <div style="background:var(--white); border-radius:14px; padding:36px 32px; width:320px; text-align:center; box-shadow:var(--shadow2);">
+    <div style="font-size:32px; margin-bottom:12px;">🔐</div>
+    <div style="font-weight:600; font-size:16px; color:var(--navy); margin-bottom:6px;">Enter PIN to Continue</div>
+    <div style="font-size:13px; color:var(--muted); margin-bottom:20px;" id="pin-modal-dest-label">This section is PIN protected</div>
+    <input type="password" id="pin-modal-input" maxlength="4"
+      style="width:100%; padding:14px; text-align:center; letter-spacing:10px; font-size:26px; border:2px solid var(--border); border-radius:9px; margin-bottom:14px; font-family:'DM Sans',sans-serif;"
+      onkeydown="if(event.key==='Enter') confirmPin()" placeholder="····">
+    <div id="pin-modal-error" style="color:var(--red); font-size:13px; margin-bottom:10px; display:none;">Incorrect PIN. Try again.</div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-primary" onclick="confirmPin()" style="flex:1">Unlock</button>
+      <button class="btn btn-outline" onclick="closePinModal()" style="flex:1">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <div class="main">
 
 <!-- ══════════════════════════════════════════ DASHBOARD -->
-<div class="page active" id="page-dashboard">
+<div class="page" id="page-dashboard">
 
   <!-- Header row -->
   <div class="page-header">
@@ -341,7 +412,7 @@
 </div>
 
 <!-- ══════════════════════════════════════════ SUBMIT -->
-<div class="page" id="page-submit">
+<div class="page active" id="page-submit">
   <div class="page-header">
     <div><div class="page-title">Submit Daily Activity Numbers</div><div class="page-sub">Visitor counts — revenue calculated automatically from current prices</div></div>
   </div>
@@ -621,7 +692,7 @@
           <div style="font-size:14px; color:var(--muted)" id="ir-message">—</div>
         </div>
         <div style="display:flex; gap:12px; margin-top:8px">
-          <button class="btn btn-primary" onclick="showPage('trends', document.querySelector('.nav-tab:nth-child(3)'))">View Trends →</button>
+          <button class="btn btn-primary" onclick="requirePin('trends', document.getElementById('tab-trends'))">View Trends →</button>
           <button class="btn btn-outline" onclick="resetImportPage()">Import More Data</button>
         </div>
       </div>
@@ -634,49 +705,37 @@
   <div class="page-header">
     <div><div class="page-title">Admin Settings</div><div class="page-sub">Prices, system bootstrap, and data management</div></div>
   </div>
-  <div class="card" id="admin-lock">
-    <div class="card-body" style="max-width:320px; margin:0 auto; text-align:center; padding:40px;">
-      <div style="font-size:40px; margin-bottom:16px;">🔐</div>
-      <div style="font-weight:600; font-size:16px; margin-bottom:12px;">Admin PIN Required</div>
-      <input type="password" class="form-input" id="admin-pin-input" placeholder="Enter PIN"
-        style="text-align:center; letter-spacing:6px; font-size:22px; margin-bottom:12px;"
-        onkeydown="if(event.key==='Enter') unlockAdmin()">
-      <button class="btn btn-primary" onclick="unlockAdmin()" style="width:100%">Unlock</button>
-    </div>
-  </div>
-  <div id="admin-panel" style="display:none">
-    <div class="card">
-      <div class="card-header"><span class="card-title">Activity Price Manager</span><span class="card-badge badge-gold">Admin</span></div>
-      <div class="card-body" style="overflow-x:auto">
-        <p style="font-size:13px; color:var(--muted); margin-bottom:16px; line-height:1.6;">Prices auto-calculate revenue on submission. <strong>Weekday</strong> = Mon–Fri; <strong>Weekend</strong> = Sat–Sun.</p>
-        <table class="price-table">
-          <thead><tr><th>Activity</th><th>Weekday Price (PKR)</th><th>Weekend Price (PKR)</th></tr></thead>
-          <tbody id="price-body"><tr><td colspan="3" class="no-data">Loading...</td></tr></tbody>
-        </table>
-        <div style="margin-top:16px; display:flex; gap:10px;">
-          <button class="btn btn-gold" onclick="savePrices()">Save Prices</button>
-          <button class="btn btn-outline" onclick="loadPrices()">Reload</button>
-        </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title">Activity Price Manager</span><span class="card-badge badge-gold">Admin</span></div>
+    <div class="card-body" style="overflow-x:auto">
+      <p style="font-size:13px; color:var(--muted); margin-bottom:16px; line-height:1.6;">Prices auto-calculate revenue on submission. <strong>Weekday</strong> = Mon–Fri; <strong>Weekend</strong> = Sat–Sun.</p>
+      <table class="price-table">
+        <thead><tr><th>Activity</th><th>Weekday Price (PKR)</th><th>Weekend Price (PKR)</th></tr></thead>
+        <tbody id="price-body"><tr><td colspan="3" class="no-data">Loading...</td></tr></tbody>
+      </table>
+      <div style="margin-top:16px; display:flex; gap:10px;">
+        <button class="btn btn-gold" onclick="savePrices()">Save Prices</button>
+        <button class="btn btn-outline" onclick="loadPrices()">Reload</button>
       </div>
     </div>
-    <div class="card">
-      <div class="card-header"><span class="card-title">System Tools</span></div>
-      <div class="card-body" style="display:flex; flex-direction:column; gap:16px;">
-        <div>
-          <div style="font-weight:600; margin-bottom:6px;">Bootstrap Sheets</div>
-          <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">Initialises all tabs and headers. Safe to re-run.</div>
-          <button class="btn btn-outline btn-sm" onclick="runBootstrap()">Run bootstrapSheets()</button>
-        </div>
-        <div>
-          <div style="font-weight:600; margin-bottom:6px;">Rebuild Summaries</div>
-          <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">Recalculates Weekly and Monthly summary tabs from Daily_Summary. Run after any manual sheet edits.</div>
-          <button class="btn btn-outline btn-sm" onclick="runRebuild()">Rebuild Weekly &amp; Monthly</button>
-        </div>
-        <div>
-          <div style="font-weight:600; margin-bottom:6px; color:var(--red);">Clear All Data</div>
-          <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">Deletes all data rows from all tabs. Headers are preserved. This cannot be undone.</div>
-          <button class="btn btn-red btn-sm" onclick="clearAllDataConfirm()">Clear All Data</button>
-        </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title">System Tools</span></div>
+    <div class="card-body" style="display:flex; flex-direction:column; gap:16px;">
+      <div>
+        <div style="font-weight:600; margin-bottom:6px;">Bootstrap Sheets</div>
+        <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">Initialises all tabs and headers. Safe to re-run.</div>
+        <button class="btn btn-outline btn-sm" onclick="runBootstrap()">Run bootstrapSheets()</button>
+      </div>
+      <div>
+        <div style="font-weight:600; margin-bottom:6px;">Rebuild Summaries</div>
+        <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">Recalculates Weekly and Monthly summary tabs from Daily_Summary. Run after any manual sheet edits.</div>
+        <button class="btn btn-outline btn-sm" onclick="runRebuild()">Rebuild Weekly &amp; Monthly</button>
+      </div>
+      <div>
+        <div style="font-weight:600; margin-bottom:6px; color:var(--red);">Clear All Data</div>
+        <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">Deletes all data rows from all tabs. Headers are preserved. This cannot be undone.</div>
+        <button class="btn btn-red btn-sm" onclick="clearAllDataConfirm()">Clear All Data</button>
       </div>
     </div>
   </div>
@@ -707,18 +766,72 @@ let charts         = {};
 let pendingImportRows = [];
 let manualQueue    = [];
 
+// ─── PIN GATE ────────────────────────────────────────────────
+const PORTAL_PIN  = '1234';
+let   pinUnlocked = false;
+let   pinTarget   = null;
+
+function requirePin(pageId, btn) {
+  if (pinUnlocked) { showPage(pageId, btn); return; }
+  pinTarget = { pageId, btn };
+  document.getElementById('pin-modal-dest-label').textContent =
+    'Enter PIN to access ' + btn.textContent.replace('🔒','').trim();
+  document.getElementById('pin-modal-error').style.display = 'none';
+  document.getElementById('pin-modal-input').value = '';
+  document.getElementById('pin-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('pin-modal-input').focus(), 50);
+}
+
+function confirmPin() {
+  if (document.getElementById('pin-modal-input').value === PORTAL_PIN) {
+    pinUnlocked = true;
+    document.querySelectorAll('.locked-tab').forEach(t => t.classList.add('unlocked'));
+    closePinModal();
+    if (pinTarget) { showPage(pinTarget.pageId, pinTarget.btn); pinTarget = null; }
+  } else {
+    document.getElementById('pin-modal-error').style.display = 'block';
+    document.getElementById('pin-modal-input').value = '';
+    document.getElementById('pin-modal-input').focus();
+  }
+}
+
+function closePinModal() {
+  document.getElementById('pin-modal').style.display = 'none';
+  pinTarget = null;
+}
+
 // ─── NAV ─────────────────────────────────────────────────────
 function showPage(id, btn) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
-  if (btn) btn.classList.add('active');
+  const tabEl = btn || document.getElementById('tab-'+id);
+  if (tabEl) tabEl.classList.add('active');
   if (id==='dashboard' && !dashData) loadDashboard();
-  if (id==='trends'   && dashData)   buildTrendCharts();
+  if (id==='trends'    && dashData)  buildTrendCharts();
   if (id==='log')                    loadLog();
   if (id==='submit')                 setupSubmitPage();
   if (id==='import')                 loadImportStatus();
+  if (id==='admin')                  loadPrices();
 }
+
+// ─── CONNECTION STATUS ────────────────────────────────────────
+async function checkConnection() {
+  const el    = document.getElementById('conn-status');
+  const label = el.querySelector('.conn-label');
+  try {
+    const res  = await fetch(GAS_URL, { method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify({action:'PING'}) });
+    await res.json(); // any valid JSON = backend live
+    el.className      = 'conn-status conn-connected';
+    label.textContent = 'Sheet Connected';
+    el.title          = 'Backend responding — Google Sheet is live';
+  } catch(e) {
+    el.className      = 'conn-status conn-disconnected';
+    label.textContent = 'Sheet Disconnected';
+    el.title          = 'Cannot reach backend — check GAS URL';
+  }
+}
+setInterval(checkConnection, 60000);
 
 // ─── GAS FETCH ────────────────────────────────────────────────
 async function gasPost(payload) {
@@ -1556,7 +1669,13 @@ function getDemoData() {
   return{success:true,activities:ACTIVITIES,today:daily[daily.length-1],yesterday:daily[daily.length-2],daily,weekly,monthly};
 }
 
-document.addEventListener('DOMContentLoaded',()=>{loadDashboard();});
+document.addEventListener('DOMContentLoaded', () => {
+  // Submit is the default landing page
+  document.getElementById('tab-submit').classList.add('active');
+  setupSubmitPage();
+  // Check backend connection on load
+  checkConnection();
+});
 </script>
 </body>
 </html>
