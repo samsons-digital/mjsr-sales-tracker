@@ -641,58 +641,208 @@
 <!-- ══════════════════════════════════════════ TRENDS -->
 <div class="page" id="page-trends">
   <div class="page-header">
-    <div><div class="page-title">Trends &amp; Analysis</div><div class="page-sub">Historical footfall, revenue growth, and activity composition</div></div>
+    <div>
+      <div class="page-title">Trends</div>
+      <div class="page-sub">Daily activity footfall and revenue — Jul 2022 to present · Price changes and holidays overlaid</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-outline btn-sm" onclick="showTrendsUpload()">📂 Upload Data</button>
+    </div>
   </div>
 
-  <!-- Year filter -->
-  <div class="card">
-    <div class="card-header"><span class="card-title">Year Filter</span><span class="card-badge badge-navy" id="trend-year-label">All Years</span></div>
-    <div class="card-body" style="padding:16px 24px">
-      <div class="year-tab-row" id="year-filter-tabs">
-        <button class="year-tab active" onclick="setTrendYear('all',this)">All Years</button>
+  <!-- Upload panel (hidden by default) -->
+  <div id="trends-upload-panel" style="display:none;margin-bottom:20px;">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Upload Data to Trends</span><span class="card-badge badge-gold">Admin</span></div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;">
+
+          <!-- Daily Sales Excel upload -->
+          <div>
+            <div style="font-weight:600;margin-bottom:6px;font-size:14px;">📊 Daily Sales Excel</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Upload FY Excel files (No of tickets + Revenue tabs). Accepted: FY2022-23, FY2023-24, FY2024-25 format.</div>
+            <input type="file" id="upload-sales-file" accept=".xlsx,.xls" style="display:none" onchange="handleSalesUpload(this)">
+            <button class="btn btn-outline btn-sm" onclick="document.getElementById('upload-sales-file').click()">Choose Excel File</button>
+            <div id="upload-sales-status" style="font-size:12px;color:var(--muted);margin-top:8px;"></div>
+          </div>
+
+          <!-- Price Changes -->
+          <div>
+            <div style="font-weight:600;margin-bottom:6px;font-size:14px;">💰 Price Changes</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Upload the price change history Excel (Price_Change_from_2023_to_2026.xlsx). This seeds 11 price change events.</div>
+            <button class="btn btn-outline btn-sm" onclick="uploadBuiltInPriceChanges()">Upload Price Changes</button>
+            <div id="upload-prices-status" style="font-size:12px;color:var(--muted);margin-top:8px;"></div>
+          </div>
+
+          <!-- Holidays -->
+          <div>
+            <div style="font-weight:600;margin-bottom:6px;font-size:14px;">🌙 Religious Holidays</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Add Eid ul Fitr, Eid ul Adha, and other holiday periods. These are overlaid on all Trends charts.</div>
+            <button class="btn btn-primary btn-sm" onclick="showAddHolidayForm()">+ Add Holiday Period</button>
+            <div id="upload-holidays-status" style="font-size:12px;color:var(--muted);margin-top:8px;"></div>
+          </div>
+        </div>
+
+        <!-- Add Holiday Form -->
+        <div id="add-holiday-form" style="display:none;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+          <div style="font-weight:600;margin-bottom:12px;">Add Holiday Period</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:12px;align-items:end;">
+            <div>
+              <label class="form-label">Name</label>
+              <input type="text" class="form-input" id="hol-name" placeholder="Eid ul Fitr 2024">
+            </div>
+            <div>
+              <label class="form-label">Type</label>
+              <select class="form-input" id="hol-type">
+                <option>Religious</option>
+                <option>National</option>
+                <option>School Holiday</option>
+                <option>Event</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">Start Date</label>
+              <input type="date" class="form-input" id="hol-start">
+            </div>
+            <div>
+              <label class="form-label">End Date</label>
+              <input type="date" class="form-input" id="hol-end">
+            </div>
+            <div>
+              <button class="btn btn-primary btn-sm" onclick="saveHolidayFromForm()">Save</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="chart-row">
-    <div class="card">
-      <div class="card-header"><span class="card-title">Weekly Visitor Totals</span><span class="card-badge badge-navy">Last 52 Weeks</span></div>
-      <div class="card-body"><div class="chart-wrap"><canvas id="chartWeekly"></canvas></div></div>
-    </div>
-    <div class="card">
-      <div class="card-header"><span class="card-title">Monthly Visitors &amp; Revenue</span><span class="card-badge badge-gold">All Months</span></div>
-      <div class="card-body"><div class="chart-wrap"><canvas id="chartMonthly"></canvas></div></div>
-    </div>
-  </div>
-
-  <!-- Year-on-year comparison -->
-  <div class="card">
-    <div class="card-header"><span class="card-title">Year-on-Year Comparison</span><span class="card-badge badge-green">Multi-Year</span></div>
-    <div class="card-body"><div class="chart-wrap" style="height:300px"><canvas id="chartYoY"></canvas></div></div>
-  </div>
-
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">Activity Composition Over Time</span>
-      <div class="tab-row" style="margin:0">
-        <button class="tab-btn active" onclick="setTrendView('weekly',this)">Weekly</button>
-        <button class="tab-btn" onclick="setTrendView('monthly',this)">Monthly</button>
+  <!-- View toggle -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-body" style="padding:14px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+      <span style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;">View</span>
+      <div class="tab-row" style="margin:0" id="trends-view-tabs">
+        <button class="tab-btn active" onclick="setTrendsView('footfall',this)">Footfall Trends</button>
+        <button class="tab-btn" onclick="setTrendsView('revenue',this)">Revenue Trends</button>
+        <button class="tab-btn" onclick="setTrendsView('activities',this)">Activity Breakdown</button>
+        <button class="tab-btn" onclick="setTrendsView('price-impact',this)">Price Impact</button>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+        <label style="font-size:12px;color:var(--muted);">Granularity</label>
+        <select class="form-input" id="trends-granularity" onchange="reloadTrendsCharts()" style="padding:5px 10px;font-size:12px;width:auto;">
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly" selected>Monthly</option>
+        </select>
+        <label style="font-size:12px;color:var(--muted);">Show overlays</label>
+        <select class="form-input" id="trends-overlays" onchange="reloadTrendsCharts()" style="padding:5px 10px;font-size:12px;width:auto;">
+          <option value="both" selected>Prices + Holidays</option>
+          <option value="prices">Price Changes Only</option>
+          <option value="holidays">Holidays Only</option>
+          <option value="none">None</option>
+        </select>
       </div>
     </div>
-    <div class="card-body"><div class="chart-wrap" style="height:320px"><canvas id="chartStacked"></canvas></div></div>
   </div>
 
-  <div class="chart-row">
+  <!-- Status bar -->
+  <div id="trends-data-status" class="card" style="margin-bottom:16px;display:none;">
+    <div class="card-body" style="padding:10px 20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;font-size:12px;color:var(--muted);">
+      <span id="trends-status-days"></span>
+      <span id="trends-status-range"></span>
+      <span id="trends-status-prices"></span>
+      <span id="trends-status-holidays"></span>
+    </div>
+  </div>
+
+  <!-- Footfall view -->
+  <div id="trends-view-footfall">
     <div class="card">
-      <div class="card-header"><span class="card-title">Weekday vs Weekend Average</span></div>
-      <div class="card-body"><div class="chart-wrap"><canvas id="chartWdWe"></canvas></div></div>
+      <div class="card-header">
+        <span class="card-title">Daily Visitor Footfall — Jul 2022 to Present</span>
+        <span class="card-badge badge-navy" id="trends-ftl-badge">Loading...</span>
+      </div>
+      <div class="card-body"><div class="chart-wrap" style="height:320px"><canvas id="chartTrendsFootfall"></canvas></div></div>
+    </div>
+    <div class="chart-row">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Monthly Footfall — Year on Year</span></div>
+        <div class="card-body"><div class="chart-wrap" style="height:280px"><canvas id="chartTrendsYoY"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Seasonal Pattern</span><span class="card-badge badge-gold">Avg by Month</span></div>
+        <div class="card-body"><div class="chart-wrap" style="height:280px"><canvas id="chartTrendsSeasonal"></canvas></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Revenue view -->
+  <div id="trends-view-revenue" style="display:none;">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Daily Revenue (PKR) — Jul 2022 to Present</span>
+        <span class="card-badge badge-gold">PKR</span>
+      </div>
+      <div class="card-body"><div class="chart-wrap" style="height:320px"><canvas id="chartTrendsRevenue"></canvas></div></div>
+    </div>
+    <div class="chart-row">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Monthly Revenue — Year on Year</span></div>
+        <div class="card-body"><div class="chart-wrap" style="height:280px"><canvas id="chartTrendsRevYoY"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Revenue per Visitor (ARPC)</span><span class="card-badge badge-navy">Trend</span></div>
+        <div class="card-body"><div class="chart-wrap" style="height:280px"><canvas id="chartTrendsArpc"></canvas></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Activity Breakdown view -->
+  <div id="trends-view-activities" style="display:none;">
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-body" style="padding:12px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;">Activity</span>
+        <select class="form-input" id="trends-activity-select" onchange="buildActivityTrend()" style="padding:5px 10px;font-size:12px;width:auto;"></select>
+      </div>
     </div>
     <div class="card">
-      <div class="card-header"><span class="card-title">Top Activities (Cumulative)</span></div>
-      <div class="card-body"><div class="chart-wrap"><canvas id="chartTopAct"></canvas></div></div>
+      <div class="card-header"><span class="card-title" id="trends-act-title">Activity Footfall Trend</span></div>
+      <div class="card-body"><div class="chart-wrap" style="height:320px"><canvas id="chartTrendsActivity"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">All Activities — Monthly Stacked</span></div>
+      <div class="card-body"><div class="chart-wrap" style="height:300px"><canvas id="chartTrendsStacked"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- Price Impact view -->
+  <div id="trends-view-price-impact" style="display:none;">
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-body" style="padding:12px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;">Price Event</span>
+        <select class="form-input" id="trends-price-event-select" onchange="buildPriceImpactChart()" style="padding:5px 10px;font-size:12px;width:240px;"></select>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Footfall Before vs After Price Change</span><span class="card-badge badge-gold" id="price-impact-badge">30 days window</span></div>
+      <div class="card-body"><div class="chart-wrap" style="height:300px"><canvas id="chartPriceImpact"></canvas></div></div>
+    </div>
+    <div id="price-impact-summary" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;"></div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">All Price Changes — Footfall Delta</span><span class="card-badge badge-navy">30-day avg comparison</span></div>
+      <div class="card-body"><div class="chart-wrap" style="height:260px"><canvas id="chartPriceDeltas"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- Holidays legend -->
+  <div id="trends-holidays-legend" style="margin-top:16px;display:none;">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Holiday Periods</span></div>
+      <div class="card-body" style="display:flex;flex-wrap:wrap;gap:10px;" id="holidays-legend-list"></div>
     </div>
   </div>
 </div>
+
 
 <!-- ══════════════════════════════════════════ LOG -->
 <div class="page" id="page-log">
@@ -1333,6 +1483,7 @@ function showPage(id, btn) {
   if (id==='import')                 loadImportStatus();
   if (id==='admin')                  loadPrices();
   if (id==='historical')             loadHistorical();
+  if (id==='trends')                 loadTrendsPage();
   if (id==='events')                 loadEventsPage();
   if (id==='weather')                loadWeatherPage();
 }
@@ -2024,7 +2175,7 @@ function filteredWeekly() {
   });
 }
 
-// ─── TRENDS ──────────────────────────────────────────────────
+// ─── TRENDS (legacy removed, replaced below) ──────────────
 function buildTrendCharts() {
   if(!dashData) return;
   buildWeeklyChart(); buildMonthlyChart(); buildYoYChart();
@@ -3647,6 +3798,703 @@ function buildWxTemp() {
         y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{callback:v=>v+'°C'}}
       }}
   });
+}
+
+
+// ─── TRENDS PAGE ─────────────────────────────────────────────
+let trendsData      = null;  // raw daily sales from sheet
+let priceChanges    = [{"date":"2023-04-19","label":"Apr 2023 \u2014 Summer increase","changes":[{"activity":"Entry","old":800,"new":1100},{"activity":"Chairlift","old":1200,"new":1400},{"activity":"Chairlift Top","old":700,"new":800},{"activity":"Zipline","old":3000,"new":3500},{"activity":"Zipline Top","old":2000,"new":2300},{"activity":"Giant Swing","old":3000,"new":3500},{"activity":"Wall Climbing","old":300,"new":400},{"activity":"Jumping Castle","old":300,"new":400},{"activity":"Leap of Faith","old":300,"new":400},{"activity":"Horse Riding","old":300,"new":400},{"activity":"Archery","old":300,"new":400},{"activity":"Tubby","old":300,"new":400}]},{"date":"2024-05-25","label":"May 2024 \u2014 Giant Swing promo","note":"3 months only","changes":[{"activity":"Giant Swing","old":3500,"new":1400}]},{"date":"2024-08-19","label":"Aug 2024 \u2014 Broad increase","changes":[{"activity":"Entry","old":1100,"new":1200},{"activity":"Chairlift","old":1400,"new":1500},{"activity":"Express Chairlift","old":1700,"new":2000},{"activity":"Chairlift Top","old":800,"new":1000},{"activity":"Zipline Top","old":2300,"new":2500},{"activity":"Giant Swing","old":1400,"new":2500},{"activity":"Slingshot","old":5000,"new":6500},{"activity":"Deal - GS+CL","old":2500,"new":3000},{"activity":"Deal - CL+ZL+GS","old":6500,"new":4500},{"activity":"Wall Climbing","old":400,"new":500},{"activity":"Jumping Castle","old":400,"new":500},{"activity":"Leap of Faith","old":400,"new":500},{"activity":"Horse Riding","old":400,"new":500},{"activity":"Archery","old":400,"new":500},{"activity":"Tubby","old":400,"new":500}]},{"date":"2025-05-27","label":"May 2025 \u2014 Major summer increase","changes":[{"activity":"Entry","old":1200,"new":1600},{"activity":"Chairlift","old":1500,"new":2000},{"activity":"Express Chairlift","old":2000,"new":2500},{"activity":"Chairlift Top","old":1000,"new":1200},{"activity":"Zipline","old":3500,"new":5000},{"activity":"Zipline Top","old":2500,"new":3000},{"activity":"Giant Swing","old":2500,"new":3000},{"activity":"Slingshot","old":6500,"new":7500},{"activity":"Deal - GS+CL","old":3000,"new":4000},{"activity":"Deal - CL+ZL+GS","old":4500,"new":6500},{"activity":"Horse Riding","old":500,"new":800}]},{"date":"2025-07-21","label":"Jul 2025 \u2014 Peak season increase","changes":[{"activity":"Entry","old":1600,"new":1900},{"activity":"Chairlift","old":2000,"new":2300},{"activity":"Express Chairlift","old":2500,"new":2900},{"activity":"Chairlift Top","old":1200,"new":1400},{"activity":"Zipline","old":5000,"new":5700},{"activity":"Zipline Top","old":3000,"new":3400},{"activity":"Giant Swing","old":3000,"new":3400},{"activity":"Slingshot","old":7500,"new":8500},{"activity":"Deal - GS+CL","old":4000,"new":4600},{"activity":"Deal - CL+ZL+GS","old":6500,"new":7400},{"activity":"VR Gaming","old":500,"new":600},{"activity":"Wall Climbing","old":500,"new":600},{"activity":"Jumping Castle","old":500,"new":600},{"activity":"Leap of Faith","old":500,"new":600},{"activity":"Horse Riding","old":800,"new":950},{"activity":"Archery","old":500,"new":600},{"activity":"Tubby","old":500,"new":600}]},{"date":"2025-10-13","label":"Oct 2025 \u2014 Shoulder reduction","changes":[{"activity":"Entry","old":1900,"new":1500},{"activity":"Chairlift","old":2300,"new":1600},{"activity":"Express Chairlift","old":2900,"new":2000},{"activity":"Chairlift Top","old":1400,"new":1000},{"activity":"Zipline","old":5700,"new":4600},{"activity":"Zipline Top","old":3400,"new":2700}]},{"date":"2026-01-14","label":"Jan 2026 \u2014 Revert to actual","note":"Back to actual prices","changes":[]},{"date":"2026-03-18","label":"Mar 2026 \u2014 Spring increase","changes":[{"activity":"Entry","old":1900,"new":2200},{"activity":"Chairlift","old":2300,"new":2800},{"activity":"Express Chairlift","old":2900,"new":3400},{"activity":"Chairlift Top","old":1400,"new":1700},{"activity":"Giant Swing","old":3400,"new":3800},{"activity":"Deal - GS+CL","old":4600,"new":5400},{"activity":"Deal - CL+ZL+GS","old":7400,"new":7800}]},{"date":"2026-03-25","label":"Mar 2026 \u2014 Partial rollback","changes":[{"activity":"Entry","old":2200,"new":2100},{"activity":"Chairlift","old":2800,"new":2500},{"activity":"Express Chairlift","old":3400,"new":2900},{"activity":"Chairlift Top","old":1700,"new":1500},{"activity":"Zipline","old":5700,"new":5900},{"activity":"Zipline Top","old":3400,"new":3500},{"activity":"Giant Swing","old":3800,"new":3500},{"activity":"Deal - GS+CL","old":5400,"new":4900},{"activity":"VR Gaming","old":600,"new":700},{"activity":"Wall Climbing","old":600,"new":700},{"activity":"Jumping Castle","old":600,"new":700},{"activity":"Leap of Faith","old":600,"new":700},{"activity":"Archery","old":600,"new":700},{"activity":"Tubby","old":600,"new":700}]},{"date":"2026-04-01","label":"Apr 2026 \u2014 Post-Eid reduction","changes":[{"activity":"Entry","old":2100,"new":1900},{"activity":"Chairlift","old":2500,"new":2300},{"activity":"Chairlift Top","old":1500,"new":1400},{"activity":"Zipline","old":5900,"new":5700},{"activity":"Zipline Top","old":3500,"new":3400},{"activity":"Giant Swing","old":3500,"new":3400},{"activity":"Deal - GS+CL","old":4900,"new":4600},{"activity":"Deal - CL+ZL+GS","old":7800,"new":7400},{"activity":"VR Gaming","old":700,"new":600},{"activity":"Wall Climbing","old":700,"new":600},{"activity":"Jumping Castle","old":700,"new":600},{"activity":"Leap of Faith","old":700,"new":600},{"activity":"Archery","old":700,"new":600},{"activity":"Tubby","old":700,"new":600}]},{"date":"2026-04-17","label":"Apr 2026 \u2014 Major reduction","changes":[{"activity":"Entry","old":1900,"new":1200},{"activity":"Chairlift","old":2300,"new":1400},{"activity":"Express Chairlift","old":2900,"new":1800},{"activity":"Chairlift Top","old":1400,"new":900},{"activity":"Zipline","old":5700,"new":2000},{"activity":"Zipline Top","old":3400,"new":2000},{"activity":"Giant Swing","old":3400,"new":2000},{"activity":"Slingshot","old":8500,"new":5000}]}];  // embedded + loaded from sheet
+let holidaysData    = [{"name":"Eid ul Fitr 2022","type":"Religious","start":"2022-05-02","end":"2022-05-05","year":"2022"},{"name":"Eid ul Adha 2022","type":"Religious","start":"2022-07-09","end":"2022-07-12","year":"2022"},{"name":"Eid ul Fitr 2023","type":"Religious","start":"2023-04-21","end":"2023-04-24","year":"2023"},{"name":"Eid ul Adha 2023","type":"Religious","start":"2023-06-28","end":"2023-07-01","year":"2023"},{"name":"Eid ul Fitr 2024","type":"Religious","start":"2024-04-10","end":"2024-04-13","year":"2024"},{"name":"Eid ul Adha 2024","type":"Religious","start":"2024-06-17","end":"2024-06-20","year":"2024"},{"name":"Eid ul Fitr 2025","type":"Religious","start":"2025-03-30","end":"2025-04-02","year":"2025"},{"name":"Eid ul Adha 2025","type":"Religious","start":"2025-06-06","end":"2025-06-09","year":"2025"},{"name":"Eid ul Fitr 2026","type":"Religious","start":"2026-03-20","end":"2026-03-23","year":"2026"}]; // embedded + loaded from sheet
+let trendsCharts    = {};
+let trendsView      = 'footfall';
+let trendsActSelect = 'Chairlift';
+
+// ── Page init ────────────────────────────────────────────────
+async function loadTrendsPage() {
+  if (!trendsData) await fetchTrendsData();
+  populateActivitySelect();
+  populatePriceEventSelect();
+  buildTrendCharts();
+  updateTrendsStatus();
+  renderHolidaysLegend();
+}
+
+async function fetchTrendsData() {
+  try {
+    // Load daily sales from sheet
+    const res = await gasPost({ action: 'GET_DAILY_SALES' });
+    if (res.success && res.rows && res.rows.length) {
+      trendsData = res.rows;
+    } else {
+      trendsData = [];
+    }
+    // Also refresh price changes and holidays from sheet
+    const pcRes = await gasPost({ action: 'GET_PRICE_CHANGES' });
+    if (pcRes.success && pcRes.changes && pcRes.changes.length) {
+      priceChanges = groupPriceChanges(pcRes.changes);
+    }
+    const holRes = await gasPost({ action: 'GET_HOLIDAYS' });
+    if (holRes.success && holRes.holidays && holRes.holidays.length) {
+      holidaysData = holRes.holidays;
+    }
+  } catch(e) {
+    trendsData = [];
+  }
+}
+
+// Group flat change rows back into events
+function groupPriceChanges(flatRows) {
+  const events = {};
+  flatRows.forEach(r => {
+    const key = r.date + '|' + r.label;
+    if (!events[key]) events[key] = { date: r.date, label: r.label, changes: [], note: r.note };
+    if (r.activity && r.activity !== 'All' && r.old > 0) {
+      events[key].changes.push({ activity: r.activity, old: r.old, new: r.new });
+    }
+  });
+  return Object.values(events).sort((a,b) => a.date.localeCompare(b.date));
+}
+
+// ── View routing ─────────────────────────────────────────────
+function setTrendsView(view, btn) {
+  trendsView = view;
+  document.querySelectorAll('#trends-view-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  ['footfall','revenue','activities','price-impact'].forEach(v => {
+    const el = document.getElementById('trends-view-'+v);
+    if (el) el.style.display = v === view ? '' : 'none';
+  });
+  buildTrendCharts();
+}
+
+function reloadTrendsCharts() { buildTrendCharts(); }
+
+function buildTrendCharts() {
+  if (!trendsData) return;
+  const view = trendsView;
+  const gran = document.getElementById('trends-granularity')?.value || 'monthly';
+  const overlays = document.getElementById('trends-overlays')?.value || 'both';
+  const showPrices = overlays === 'both' || overlays === 'prices';
+  const showHols   = overlays === 'both' || overlays === 'holidays';
+
+  if (view === 'footfall')     buildFootfallCharts(gran, showPrices, showHols);
+  if (view === 'revenue')      buildRevenueCharts(gran, showPrices, showHols);
+  if (view === 'activities')   buildActivityTrend();
+  if (view === 'price-impact') buildPriceImpactChart();
+}
+
+// ── Data helpers ──────────────────────────────────────────────
+function aggregateByGran(gran) {
+  if (!trendsData || !trendsData.length) return { labels: [], visitors: [], revenues: [], months: [] };
+
+  if (gran === 'daily') {
+    // Merge sheet data with dashData
+    const allDays = {};
+    if (dashData) dashData.daily.forEach(r => { allDays[r.date] = { v: r.visitors, x: r.revenue }; });
+    trendsData.forEach(r => {
+      const d = r['Date'] || r.d || '';
+      if (d) allDays[d] = { v: Number(r['Total Visitors'] || r.v || 0), x: Number(r['Total Revenue (PKR)'] || r.x || 0) };
+    });
+    const days = Object.entries(allDays).sort((a,b) => a[0].localeCompare(b[0]));
+    return { labels: days.map(d=>d[0].slice(5)), visitors: days.map(d=>d[1].v), revenues: days.map(d=>d[1].x), dates: days.map(d=>d[0]) };
+  }
+
+  const buckets = {};
+  const addToBucket = (key, v, x) => {
+    if (!buckets[key]) buckets[key] = { v: 0, x: 0, days: 0 };
+    buckets[key].v += v; buckets[key].x += x; buckets[key].days++;
+  };
+
+  // Historical data from trends
+  trendsData.forEach(r => {
+    const d = r['Date'] || r.d || '';
+    if (!d) return;
+    const v = Number(r['Total Visitors'] || 0);
+    const x = Number(r['Total Revenue (PKR)'] || 0);
+    if (gran === 'monthly') addToBucket(d.slice(0,7), v, x);
+    else {
+      // Weekly: find Monday
+      const dt = new Date(d + 'T00:00:00');
+      const day = dt.getDay();
+      const diff = dt.getDate() - day + (day === 0 ? -6 : 1);
+      const mon = new Date(dt.getFullYear(), dt.getMonth(), diff);
+      addToBucket(mon.toISOString().slice(0,10), v, x);
+    }
+  });
+
+  // Also add live dashboard data
+  if (dashData) dashData.daily.forEach(r => {
+    if (gran === 'monthly') addToBucket(r.date.slice(0,7), r.visitors, r.revenue);
+    else {
+      const dt = new Date(r.date + 'T00:00:00');
+      const day = dt.getDay();
+      const diff = dt.getDate() - day + (day === 0 ? -6 : 1);
+      const mon = new Date(dt.getFullYear(), dt.getMonth(), diff);
+      addToBucket(mon.toISOString().slice(0,10), r.visitors, r.revenue);
+    }
+  });
+
+  const mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const keys = Object.keys(buckets).sort();
+  const labels = keys.map(k => {
+    if (gran === 'monthly') return mNames[parseInt(k.slice(5))-1] + ' ' + k.slice(2,4);
+    return k.slice(5);
+  });
+  return { labels, visitors: keys.map(k=>buckets[k].v), revenues: keys.map(k=>buckets[k].x), dates: keys };
+}
+
+// ── Overlay helpers ───────────────────────────────────────────
+function getPriceAnnotations(dates) {
+  const annotations = {};
+  priceChanges.forEach((pc, idx) => {
+    const i = dates.findIndex(d => pc.date <= d && (idx+1 >= priceChanges.length || d < priceChanges[idx+1].date));
+    if (i < 0) return;
+    const nearby = dates.findIndex(d => d >= pc.date);
+    if (nearby < 0) return;
+    // Find the main change direction
+    const hasIncrease = pc.changes.some(c => c.new > c.old);
+    const hasDecrease = pc.changes.some(c => c.new < c.old);
+    const color = hasDecrease ? '#e05c3a' : '#3daa6e';
+    annotations['pc_'+idx] = {
+      type: 'line',
+      xMin: nearby, xMax: nearby,
+      borderColor: color, borderWidth: 2, borderDash: [5,3],
+      label: { content: pc.label.slice(0,20), enabled: true, position: 'start',
+               backgroundColor: color, color: '#fff', font: { size: 9 }, padding: 3 }
+    };
+  });
+  return annotations;
+}
+
+function getHolidayBoxes(dates, chartType) {
+  const boxes = {};
+  holidaysData.forEach((h, idx) => {
+    const start = dates.findIndex(d => d >= h.start);
+    const end   = dates.findLastIndex(d => d <= h.end);
+    if (start < 0 || end < start) return;
+    boxes['hol_'+idx] = {
+      type: 'box',
+      xMin: start - 0.5, xMax: end + 0.5,
+      backgroundColor: 'rgba(201,146,42,0.12)',
+      borderColor: 'rgba(201,146,42,0.4)',
+      borderWidth: 1,
+      label: { content: h.name, enabled: true, position: 'start',
+               color: '#a07010', font: { size: 9 }, padding: 2 }
+    };
+  });
+  return boxes;
+}
+
+function buildAnnotations(dates, showPrices, showHols) {
+  return {
+    ...(showPrices ? getPriceAnnotations(dates) : {}),
+    ...(showHols   ? getHolidayBoxes(dates) : {})
+  };
+}
+
+function destroyTrend(id) {
+  if (trendsCharts[id]) { trendsCharts[id].destroy(); delete trendsCharts[id]; }
+}
+
+// ── Footfall charts ───────────────────────────────────────────
+function buildFootfallCharts(gran, showPrices, showHols) {
+  destroyTrend('footfall'); destroyTrend('yoy'); destroyTrend('seasonal');
+
+  const agg = aggregateByGran(gran);
+  if (!agg.labels.length) return;
+  const annotations = buildAnnotations(agg.dates || agg.labels, showPrices, showHols);
+
+  const badge = document.getElementById('trends-ftl-badge');
+  if (badge) badge.textContent = agg.labels.length + ' ' + gran + ' points';
+
+  trendsCharts.footfall = new Chart(
+    document.getElementById('chartTrendsFootfall').getContext('2d'), {
+    type: 'bar',
+    data: { labels: agg.labels, datasets: [{
+      label: 'Visitors', data: agg.visitors,
+      backgroundColor: 'rgba(26,58,92,0.7)', borderRadius: 2
+    }]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => 'Visitors: ' + ctx.raw.toLocaleString('en-PK') }},
+        annotation: { annotations }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 24, font: { size: 9 }}},
+        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: v => v>=1000?Math.round(v/1000)+'K':v }}
+      }
+    }
+  });
+
+  // YoY
+  const mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const byYearMonth = {};
+  (agg.dates || []).forEach((d, i) => {
+    const yr = d.slice(0,4), mo = parseInt(d.slice(5,7))-1;
+    if (!byYearMonth[yr]) byYearMonth[yr] = new Array(12).fill(null);
+    byYearMonth[yr][mo] = (byYearMonth[yr][mo] || 0) + agg.visitors[i];
+  });
+  const years = Object.keys(byYearMonth).sort();
+  const yoyColors = ['#0f2340','#1a3a5c','#c9922a','#3daa6e','#8e4dba'];
+
+  trendsCharts.yoy = new Chart(
+    document.getElementById('chartTrendsYoY').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: mNames,
+      datasets: years.map((yr,i) => ({
+        label: yr, data: byYearMonth[yr],
+        borderColor: yoyColors[i % yoyColors.length],
+        backgroundColor: 'transparent',
+        tension: 0.3, pointRadius: 3, borderWidth: 2, spanGaps: true
+      }))
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { font: { size: 10 }, boxWidth: 12 }},
+                 tooltip: { callbacks: { label: ctx => ctx.dataset.label+': '+(ctx.raw||0).toLocaleString('en-PK') }}},
+      scales: { x: { grid: { display: false }}, y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: v => v>=1000?Math.round(v/1000)+'K':v }}}
+    }
+  });
+
+  // Seasonal average
+  const seasonalAvg = new Array(12).fill(0);
+  const seasonalCount = new Array(12).fill(0);
+  Object.values(byYearMonth).forEach(yr => {
+    yr.forEach((v, mo) => { if (v) { seasonalAvg[mo] += v; seasonalCount[mo]++; }});
+  });
+  const seasonalData = seasonalAvg.map((s,i) => seasonalCount[i] > 0 ? Math.round(s/seasonalCount[i]) : 0);
+
+  trendsCharts.seasonal = new Chart(
+    document.getElementById('chartTrendsSeasonal').getContext('2d'), {
+    type: 'bar',
+    data: { labels: mNames, datasets: [{ label: 'Avg Visitors', data: seasonalData,
+      backgroundColor: mNames.map((_,i) => i>=3&&i<=8?'rgba(201,146,42,0.7)':'rgba(26,58,92,0.7)'),
+      borderRadius: 4 }]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.raw.toLocaleString('en-PK')+ ' avg' }}},
+      scales: { x: { grid: { display: false }}, y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: v => v>=1000?Math.round(v/1000)+'K':v }}}
+    }
+  });
+}
+
+// ── Revenue charts ────────────────────────────────────────────
+function buildRevenueCharts(gran, showPrices, showHols) {
+  destroyTrend('revenue'); destroyTrend('revYoY'); destroyTrend('arpc');
+  const agg = aggregateByGran(gran);
+  if (!agg.labels.length) return;
+  const annotations = buildAnnotations(agg.dates || agg.labels, showPrices, showHols);
+
+  trendsCharts.revenue = new Chart(
+    document.getElementById('chartTrendsRevenue').getContext('2d'), {
+    type: 'bar',
+    data: { labels: agg.labels, datasets: [{
+      label: 'Revenue (PKR)', data: agg.revenues,
+      backgroundColor: 'rgba(201,146,42,0.7)', borderRadius: 2
+    }]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => 'PKR ' + ctx.raw.toLocaleString('en-PK') }},
+        annotation: { annotations }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 24, font: { size: 9 }}},
+        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: v => v>=1e6?'PKR '+(v/1e6).toFixed(0)+'M':v>=1e3?'PKR '+(v/1e3).toFixed(0)+'K':'PKR '+v }}
+      }
+    }
+  });
+
+  // ARPC
+  const arpcData = agg.visitors.map((v,i) => v>0 ? Math.round(agg.revenues[i]/v) : null);
+  trendsCharts.arpc = new Chart(
+    document.getElementById('chartTrendsArpc').getContext('2d'), {
+    type: 'line',
+    data: { labels: agg.labels, datasets: [{
+      label: 'ARPC (PKR)', data: arpcData,
+      borderColor: '#c9922a', backgroundColor: 'rgba(201,146,42,0.08)',
+      fill: true, tension: 0.3, pointRadius: 2, borderWidth: 2, spanGaps: true
+    }]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => 'PKR ' + ctx.raw?.toLocaleString('en-PK') }}},
+      scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 20, font: { size: 9 }}}, y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: v => 'PKR ' + v.toLocaleString('en-PK') }}}
+    }
+  });
+}
+
+// ── Activity trend ────────────────────────────────────────────
+function populateActivitySelect() {
+  const sel = document.getElementById('trends-activity-select');
+  if (!sel || sel.options.length > 1) return;
+  const acts = getAvailableActivities();
+  acts.forEach(a => { const o=document.createElement('option'); o.value=a; o.textContent=a; sel.appendChild(o); });
+  if (sel.options.length) { sel.value = sel.options[0].value; trendsActSelect = sel.options[0].value; }
+}
+
+function getAvailableActivities() {
+  if (!trendsData || !trendsData.length) return ['Chairlift','Zipline','Giant Swing'];
+  const actSet = new Set();
+  trendsData.forEach(r => {
+    Object.keys(r).forEach(k => { if (k.endsWith(' Count')) actSet.add(k.replace(' Count','')); });
+  });
+  return [...actSet].sort();
+}
+
+function buildActivityTrend() {
+  destroyTrend('activity'); destroyTrend('stacked');
+  const act = document.getElementById('trends-activity-select')?.value || trendsActSelect;
+  const title = document.getElementById('trends-act-title');
+  if (title) title.textContent = act + ' — Monthly Footfall Trend';
+
+  const gran = 'monthly';
+  const buckets = {};
+  trendsData.forEach(r => {
+    const d = r['Date'] || r.d || '';
+    if (!d) return;
+    const m = d.slice(0,7);
+    const v = Number(r[(act + ' Count')] || 0);
+    if (!buckets[m]) buckets[m] = 0;
+    buckets[m] += v;
+  });
+  if (dashData) dashData.daily.forEach(r => {
+    const m = r.date.slice(0,7);
+    const v = r.activities[act] || 0;
+    if (!buckets[m]) buckets[m] = 0;
+    buckets[m] += v;
+  });
+
+  const mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const keys = Object.keys(buckets).sort();
+  const labels = keys.map(k => mNames[parseInt(k.slice(5))-1] + ' ' + k.slice(2,4));
+  const data   = keys.map(k => buckets[k]);
+
+  const overlays = document.getElementById('trends-overlays')?.value || 'both';
+  const annotations = buildAnnotations(keys, overlays==='both'||overlays==='prices', overlays==='both'||overlays==='holidays');
+
+  trendsCharts.activity = new Chart(
+    document.getElementById('chartTrendsActivity').getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets: [{ label: act + ' tickets', data, backgroundColor: 'rgba(26,58,92,0.7)', borderRadius: 3 }]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false },
+                 tooltip: { callbacks: { label: ctx => act+': '+ctx.raw.toLocaleString('en-PK') }},
+                 annotation: { annotations }},
+      scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 20, font: { size: 9 }}}, y: { grid: { color: 'rgba(0,0,0,0.05)' }}}
+    }
+  });
+
+  // Stacked all activities
+  destroyTrend('stacked');
+  const stackActs = getAvailableActivities().slice(0,8);
+  const stackBuckets = {};
+  trendsData.forEach(r => {
+    const d = r['Date']||r.d||''; if(!d) return;
+    const m = d.slice(0,7);
+    if(!stackBuckets[m]) stackBuckets[m]={};
+    stackActs.forEach(a => { const v=Number(r[a+' Count']||0); stackBuckets[m][a]=(stackBuckets[m][a]||0)+v; });
+  });
+  const stackKeys = Object.keys(stackBuckets).sort();
+  const stackLabels = stackKeys.map(k => mNames[parseInt(k.slice(5))-1]+' '+k.slice(2,4));
+  const colors = ['#0f2340','#1a3a5c','#c9922a','#e8b04a','#2d7a4e','#3daa6e','#8e4dba','#e05c3a'];
+
+  trendsCharts.stacked = new Chart(
+    document.getElementById('chartTrendsStacked').getContext('2d'), {
+    type: 'bar',
+    data: { labels: stackLabels, datasets: stackActs.map((a,i) => ({
+      label: a, data: stackKeys.map(k=>(stackBuckets[k]||{})[a]||0),
+      backgroundColor: colors[i%colors.length], stack: 's', borderWidth: 0
+    }))},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 9 }, boxWidth: 10 }}},
+      scales: { x: { stacked: true, grid: { display: false }, ticks: { maxTicksLimit: 18, font: { size: 9 }}}, y: { stacked: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: v => v>=1000?Math.round(v/1000)+'K':v }}}
+    }
+  });
+}
+
+// ── Price impact chart ────────────────────────────────────────
+function populatePriceEventSelect() {
+  const sel = document.getElementById('trends-price-event-select');
+  if (!sel) return;
+  sel.innerHTML = '';
+  priceChanges.forEach((pc,i) => {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = pc.date + ' — ' + pc.label;
+    sel.appendChild(o);
+  });
+}
+
+function buildPriceImpactChart() {
+  destroyTrend('priceImpact'); destroyTrend('priceDeltas');
+
+  const sel = document.getElementById('trends-price-event-select');
+  const idx = sel ? parseInt(sel.value) : 0;
+  const event = priceChanges[idx];
+  if (!event) return;
+
+  const addDays = (d, n) => { const dt=new Date(d+'T00:00:00'); dt.setDate(dt.getDate()+n); return dt.toISOString().slice(0,10); };
+  const before = addDays(event.date, -30);
+  const after  = addDays(event.date,  30);
+
+  // Get daily visitors in window from trendsData + dashData
+  const allDays = {};
+  trendsData.forEach(r => { const d=r['Date']||r.d||''; if(d) allDays[d]=Number(r['Total Visitors']||0); });
+  if (dashData) dashData.daily.forEach(r => { allDays[r.date]=(allDays[r.date]||0)||r.visitors; });
+
+  const labels=[], data=[], bgColors=[];
+  for (let d=before; d<=after; d=addDays(d,1)) {
+    labels.push(d.slice(5));
+    data.push(allDays[d] || 0);
+    if (d === event.date) bgColors.push('#c9922a');
+    else if (d < event.date) bgColors.push('rgba(201,146,42,0.35)');
+    else bgColors.push('rgba(26,58,92,0.7)');
+  }
+
+  const eventIdx = labels.indexOf(event.date.slice(5));
+  const beforeAvg = data.slice(0, eventIdx).filter(v=>v>0).reduce((s,v,_,a)=>s+v/a.length,0);
+  const afterAvg  = data.slice(eventIdx+1).filter(v=>v>0).reduce((s,v,_,a)=>s+v/a.length,0);
+  const delta = beforeAvg > 0 ? ((afterAvg-beforeAvg)/beforeAvg*100).toFixed(1) : null;
+
+  // Summary tiles
+  const summary = document.getElementById('price-impact-summary');
+  if (summary) summary.innerHTML = `
+    <div class="impact-kpi"><div class="impact-kpi-label">Avg Daily Visitors (30 days before)</div><div class="impact-kpi-val">${beforeAvg>0?Math.round(beforeAvg).toLocaleString('en-PK'):'No data'}</div></div>
+    <div class="impact-kpi"><div class="impact-kpi-label">Avg Daily Visitors (30 days after)</div><div class="impact-kpi-val">${afterAvg>0?Math.round(afterAvg).toLocaleString('en-PK'):'No data'}</div></div>
+    <div class="impact-kpi" style="border-top:3px solid ${delta?parseFloat(delta)>0?'var(--green2)':'var(--red)':'var(--muted)'}">
+      <div class="impact-kpi-label">Footfall Change</div>
+      <div class="impact-kpi-val" style="color:${delta?parseFloat(delta)>0?'var(--green2)':'var(--red)':'var(--muted)'}">${delta?(parseFloat(delta)>0?'▲ ':'▼ ')+Math.abs(delta)+'%':'—'}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;">${event.changes.length} prices changed</div>
+    </div>`;
+
+  trendsCharts.priceImpact = new Chart(
+    document.getElementById('chartPriceImpact').getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Daily Visitors', data, backgroundColor: bgColors, borderRadius: 3 }]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => 'Visitors: '+ctx.raw.toLocaleString('en-PK') }}},
+      scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 20, font: { size: 9 }}}, y: { grid: { color: 'rgba(0,0,0,0.05)' }}}
+    }
+  });
+
+  // All price change deltas
+  const deltaData = priceChanges.map(pc => {
+    const evDate = pc.date;
+    const bef = addDays(evDate,-30), aft = addDays(evDate,30);
+    const befVals = [], aftVals = [];
+    for (let d=bef; d<evDate; d=addDays(d,1)) { if(allDays[d]>0) befVals.push(allDays[d]); }
+    for (let d=addDays(evDate,1); d<=aft; d=addDays(d,1)) { if(allDays[d]>0) aftVals.push(allDays[d]); }
+    const ba = befVals.length>0?befVals.reduce((s,v)=>s+v,0)/befVals.length:0;
+    const aa = aftVals.length>0?aftVals.reduce((s,v)=>s+v,0)/aftVals.length:0;
+    return ba>0&&aa>0 ? Math.round((aa-ba)/ba*100) : null;
+  });
+
+  trendsCharts.priceDeltas = new Chart(
+    document.getElementById('chartPriceDeltas').getContext('2d'), {
+    type: 'bar',
+    data: { labels: priceChanges.map(pc=>pc.date.slice(2)), datasets: [{ label: 'Footfall delta %',
+      data: deltaData,
+      backgroundColor: deltaData.map(v => v===null?'#ccc':v>0?'rgba(45,122,78,0.7)':'rgba(192,57,43,0.7)'),
+      borderRadius: 4
+    }]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.raw===null?'No data':(ctx.raw>0?'+':'')+ctx.raw+'% footfall change' }}},
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 9 }}},
+        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: v => v+'%' }}
+      }
+    }
+  });
+}
+
+// ── Upload handlers ───────────────────────────────────────────
+function showTrendsUpload() {
+  const p = document.getElementById('trends-upload-panel');
+  if (p) p.style.display = p.style.display === 'none' ? '' : 'none';
+}
+
+function showAddHolidayForm() {
+  const f = document.getElementById('add-holiday-form');
+  if (f) f.style.display = f.style.display === 'none' ? '' : 'none';
+}
+
+async function handleSalesUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById('upload-sales-status');
+  status.textContent = 'Reading file...';
+
+  // Read Excel file using SheetJS
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const XLSX = await import('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js').catch(() => window.XLSX);
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      status.textContent = 'Parsing ' + wb.SheetNames.length + ' tabs...';
+
+      const rows = parseExcelSalesFile(wb, XLSX);
+      if (!rows.length) { status.textContent = 'No data found in file.'; return; }
+
+      status.textContent = `Parsed ${rows.length} days. Uploading to sheet...`;
+      const res = await gasPost({ action: 'UPLOAD_DAILY_SALES', pin: '1234', rows });
+      if (res.success) {
+        status.textContent = `✓ ${res.inserted} days uploaded, ${res.skipped} skipped.`;
+        trendsData = null; // force reload
+        await fetchTrendsData();
+        buildTrendCharts();
+        updateTrendsStatus();
+      } else {
+        status.textContent = 'Error: ' + res.error;
+      }
+    } catch(err) {
+      status.textContent = 'Parse error: ' + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseExcelSalesFile(wb, XLSX) {
+  // Auto-detect which fiscal year format and parse
+  const rows = [];
+  // Try to find "No of tickets" tab
+  const tixSheet = wb.SheetNames.find(n => n.toLowerCase().includes('ticket') || n.toLowerCase().includes('no.'));
+  const revSheet  = wb.SheetNames.find(n => n.toLowerCase().includes('revenue') || n.toLowerCase().includes('sales'));
+  if (!tixSheet && !revSheet) return [];
+
+  const parseSheet = (sheetName) => {
+    const ws = wb.Sheets[sheetName];
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: false });
+    // Find header row (has Date of sale)
+    let hRowIdx = data.findIndex(r => r && r.some(v => String(v||'').includes('Date of sale')));
+    if (hRowIdx < 0) return [];
+    const hdrs = data[hRowIdx];
+    // Find date column
+    const dateCol = hdrs.findIndex(h => String(h||'').includes('Date'));
+    if (dateCol < 0) return [];
+    const result = [];
+    for (let i = hRowIdx+1; i < data.length; i++) {
+      const row = data[i];
+      const rawDate = row[dateCol];
+      if (!rawDate) continue;
+      const dateStr = rawDate instanceof Date
+        ? rawDate.toISOString().slice(0,10)
+        : String(rawDate).slice(0,10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) continue;
+      const acts = {}, revs = {};
+      hdrs.forEach((h, j) => {
+        if (j === dateCol || !h) return;
+        const canon = clientCanonical(String(h));
+        if (!canon) return;
+        const v = parseFloat(String(row[j]||'0').replace(/,/g,'')) || 0;
+        if (v > 0) acts[canon] = (acts[canon]||0) + v;
+      });
+      const total = Object.values(acts).reduce((s,v)=>s+v, 0);
+      if (total > 0) result.push({ d: dateStr, t: acts, r: revs, v: total, x: 0 });
+    }
+    return result;
+  };
+
+  const parsed = tixSheet ? parseSheet(tixSheet) : parseSheet(revSheet);
+  return parsed;
+}
+
+function clientCanonical(col) {
+  const c = col.toLowerCase().trim();
+  if (c.includes('all in one chairlift') || c.includes('all in one cl')) return 'Chairlift';
+  if (c.includes('express chairlift')) return 'Express Chairlift';
+  if (c.includes('1 way') && c.includes('chairlift')) return 'Chairlift Top';
+  if (c.includes('chairlift top')) return 'Chairlift Top';
+  if (c.includes('chairlift 700') || c.includes('chairlift 800') || c.includes('chairlift 900')) return 'Chairlift Top';
+  if (c.includes('chairlift') && !c.includes('express') && !c.includes('swing') && !c.includes('1 way')) return 'Chairlift';
+  if (c.includes('express zipline')) return 'Zipline';
+  if (c.includes('zipline top')) return 'Zipline Top';
+  if (c.includes('zipline') && !c.includes('top') && !c.includes('gv') && !c.includes('kids')) return 'Zipline';
+  if ((c.includes('cl + gs') || c.includes('cl+gs') || c.includes('gs+cl') || c.includes('giant swing + chairlift')) && !c.includes('zipline')) return 'Deal - GS+CL';
+  if (c.includes('giant swing') && (c.includes('zipline')||c.includes('zl'))) return 'Deal - GS+CL+ZL';
+  if (c.includes('giant swing')) return 'Giant Swing';
+  if (c.includes('slingshot') || c.includes('human sling')) return 'Slingshot';
+  if (c.includes('ski') || c.includes('snow game') || c.includes('snow bike')) return 'Skiing';
+  if (c.includes('leap of faith')) return 'Leap of Faith';
+  if (c.includes('tubby') && !c.includes('gv')) return 'Tubby';
+  if (c.includes('wall climbing') || c.includes('wall climb')) return 'Wall Climbing';
+  if (c.includes('vr gaming')) return 'VR Gaming';
+  if ((c.includes('jumping caste') || c.includes('jumping castle')) && !c.includes('gv')) return 'Jumping Castle';
+  if ((c.includes('trampoline') || c.includes('trampline')) && !c.includes('gv')) return 'Trampoline';
+  if (c.includes('archery') && !c.includes('gv')) return 'Archery';
+  if (c.includes('horse riding') && !c.includes('gv')) return 'Horse Riding';
+  if (c.includes('deal') && (c.includes('3 rides')||c.includes('any 3'))) return 'Deal - 3 Rides';
+  if ((c.includes('deal 02')||c.includes('deal2')) && (c.includes('cl')||c.includes('zl')||c.includes('gs'))) return 'Deal - CL+ZL+GS';
+  if (c.includes('entry fee')) return 'Entry';
+  return null;
+}
+
+async function uploadBuiltInPriceChanges() {
+  const status = document.getElementById('upload-prices-status');
+  status.textContent = 'Uploading 11 price change events...';
+  try {
+    const res = await gasPost({ action: 'UPLOAD_PRICE_CHANGES', pin: '1234', changes: [{"date":"2023-04-19","label":"Apr 2023 \u2014 Summer increase","changes":[{"activity":"Entry","old":800,"new":1100},{"activity":"Chairlift","old":1200,"new":1400},{"activity":"Chairlift Top","old":700,"new":800},{"activity":"Zipline","old":3000,"new":3500},{"activity":"Zipline Top","old":2000,"new":2300},{"activity":"Giant Swing","old":3000,"new":3500},{"activity":"Wall Climbing","old":300,"new":400},{"activity":"Jumping Castle","old":300,"new":400},{"activity":"Leap of Faith","old":300,"new":400},{"activity":"Horse Riding","old":300,"new":400},{"activity":"Archery","old":300,"new":400},{"activity":"Tubby","old":300,"new":400}]},{"date":"2024-05-25","label":"May 2024 \u2014 Giant Swing promo","note":"3 months only","changes":[{"activity":"Giant Swing","old":3500,"new":1400}]},{"date":"2024-08-19","label":"Aug 2024 \u2014 Broad increase","changes":[{"activity":"Entry","old":1100,"new":1200},{"activity":"Chairlift","old":1400,"new":1500},{"activity":"Express Chairlift","old":1700,"new":2000},{"activity":"Chairlift Top","old":800,"new":1000},{"activity":"Zipline Top","old":2300,"new":2500},{"activity":"Giant Swing","old":1400,"new":2500},{"activity":"Slingshot","old":5000,"new":6500},{"activity":"Deal - GS+CL","old":2500,"new":3000},{"activity":"Deal - CL+ZL+GS","old":6500,"new":4500},{"activity":"Wall Climbing","old":400,"new":500},{"activity":"Jumping Castle","old":400,"new":500},{"activity":"Leap of Faith","old":400,"new":500},{"activity":"Horse Riding","old":400,"new":500},{"activity":"Archery","old":400,"new":500},{"activity":"Tubby","old":400,"new":500}]},{"date":"2025-05-27","label":"May 2025 \u2014 Major summer increase","changes":[{"activity":"Entry","old":1200,"new":1600},{"activity":"Chairlift","old":1500,"new":2000},{"activity":"Express Chairlift","old":2000,"new":2500},{"activity":"Chairlift Top","old":1000,"new":1200},{"activity":"Zipline","old":3500,"new":5000},{"activity":"Zipline Top","old":2500,"new":3000},{"activity":"Giant Swing","old":2500,"new":3000},{"activity":"Slingshot","old":6500,"new":7500},{"activity":"Deal - GS+CL","old":3000,"new":4000},{"activity":"Deal - CL+ZL+GS","old":4500,"new":6500},{"activity":"Horse Riding","old":500,"new":800}]},{"date":"2025-07-21","label":"Jul 2025 \u2014 Peak season increase","changes":[{"activity":"Entry","old":1600,"new":1900},{"activity":"Chairlift","old":2000,"new":2300},{"activity":"Express Chairlift","old":2500,"new":2900},{"activity":"Chairlift Top","old":1200,"new":1400},{"activity":"Zipline","old":5000,"new":5700},{"activity":"Zipline Top","old":3000,"new":3400},{"activity":"Giant Swing","old":3000,"new":3400},{"activity":"Slingshot","old":7500,"new":8500},{"activity":"Deal - GS+CL","old":4000,"new":4600},{"activity":"Deal - CL+ZL+GS","old":6500,"new":7400},{"activity":"VR Gaming","old":500,"new":600},{"activity":"Wall Climbing","old":500,"new":600},{"activity":"Jumping Castle","old":500,"new":600},{"activity":"Leap of Faith","old":500,"new":600},{"activity":"Horse Riding","old":800,"new":950},{"activity":"Archery","old":500,"new":600},{"activity":"Tubby","old":500,"new":600}]},{"date":"2025-10-13","label":"Oct 2025 \u2014 Shoulder reduction","changes":[{"activity":"Entry","old":1900,"new":1500},{"activity":"Chairlift","old":2300,"new":1600},{"activity":"Express Chairlift","old":2900,"new":2000},{"activity":"Chairlift Top","old":1400,"new":1000},{"activity":"Zipline","old":5700,"new":4600},{"activity":"Zipline Top","old":3400,"new":2700}]},{"date":"2026-01-14","label":"Jan 2026 \u2014 Revert to actual","note":"Back to actual prices","changes":[]},{"date":"2026-03-18","label":"Mar 2026 \u2014 Spring increase","changes":[{"activity":"Entry","old":1900,"new":2200},{"activity":"Chairlift","old":2300,"new":2800},{"activity":"Express Chairlift","old":2900,"new":3400},{"activity":"Chairlift Top","old":1400,"new":1700},{"activity":"Giant Swing","old":3400,"new":3800},{"activity":"Deal - GS+CL","old":4600,"new":5400},{"activity":"Deal - CL+ZL+GS","old":7400,"new":7800}]},{"date":"2026-03-25","label":"Mar 2026 \u2014 Partial rollback","changes":[{"activity":"Entry","old":2200,"new":2100},{"activity":"Chairlift","old":2800,"new":2500},{"activity":"Express Chairlift","old":3400,"new":2900},{"activity":"Chairlift Top","old":1700,"new":1500},{"activity":"Zipline","old":5700,"new":5900},{"activity":"Zipline Top","old":3400,"new":3500},{"activity":"Giant Swing","old":3800,"new":3500},{"activity":"Deal - GS+CL","old":5400,"new":4900},{"activity":"VR Gaming","old":600,"new":700},{"activity":"Wall Climbing","old":600,"new":700},{"activity":"Jumping Castle","old":600,"new":700},{"activity":"Leap of Faith","old":600,"new":700},{"activity":"Archery","old":600,"new":700},{"activity":"Tubby","old":600,"new":700}]},{"date":"2026-04-01","label":"Apr 2026 \u2014 Post-Eid reduction","changes":[{"activity":"Entry","old":2100,"new":1900},{"activity":"Chairlift","old":2500,"new":2300},{"activity":"Chairlift Top","old":1500,"new":1400},{"activity":"Zipline","old":5900,"new":5700},{"activity":"Zipline Top","old":3500,"new":3400},{"activity":"Giant Swing","old":3500,"new":3400},{"activity":"Deal - GS+CL","old":4900,"new":4600},{"activity":"Deal - CL+ZL+GS","old":7800,"new":7400},{"activity":"VR Gaming","old":700,"new":600},{"activity":"Wall Climbing","old":700,"new":600},{"activity":"Jumping Castle","old":700,"new":600},{"activity":"Leap of Faith","old":700,"new":600},{"activity":"Archery","old":700,"new":600},{"activity":"Tubby","old":700,"new":600}]},{"date":"2026-04-17","label":"Apr 2026 \u2014 Major reduction","changes":[{"activity":"Entry","old":1900,"new":1200},{"activity":"Chairlift","old":2300,"new":1400},{"activity":"Express Chairlift","old":2900,"new":1800},{"activity":"Chairlift Top","old":1400,"new":900},{"activity":"Zipline","old":5700,"new":2000},{"activity":"Zipline Top","old":3400,"new":2000},{"activity":"Giant Swing","old":3400,"new":2000},{"activity":"Slingshot","old":8500,"new":5000}]}] });
+    if (res.success) {
+      status.textContent = '✓ ' + res.message;
+      priceChanges = [{"date":"2023-04-19","label":"Apr 2023 \u2014 Summer increase","changes":[{"activity":"Entry","old":800,"new":1100},{"activity":"Chairlift","old":1200,"new":1400},{"activity":"Chairlift Top","old":700,"new":800},{"activity":"Zipline","old":3000,"new":3500},{"activity":"Zipline Top","old":2000,"new":2300},{"activity":"Giant Swing","old":3000,"new":3500},{"activity":"Wall Climbing","old":300,"new":400},{"activity":"Jumping Castle","old":300,"new":400},{"activity":"Leap of Faith","old":300,"new":400},{"activity":"Horse Riding","old":300,"new":400},{"activity":"Archery","old":300,"new":400},{"activity":"Tubby","old":300,"new":400}]},{"date":"2024-05-25","label":"May 2024 \u2014 Giant Swing promo","note":"3 months only","changes":[{"activity":"Giant Swing","old":3500,"new":1400}]},{"date":"2024-08-19","label":"Aug 2024 \u2014 Broad increase","changes":[{"activity":"Entry","old":1100,"new":1200},{"activity":"Chairlift","old":1400,"new":1500},{"activity":"Express Chairlift","old":1700,"new":2000},{"activity":"Chairlift Top","old":800,"new":1000},{"activity":"Zipline Top","old":2300,"new":2500},{"activity":"Giant Swing","old":1400,"new":2500},{"activity":"Slingshot","old":5000,"new":6500},{"activity":"Deal - GS+CL","old":2500,"new":3000},{"activity":"Deal - CL+ZL+GS","old":6500,"new":4500},{"activity":"Wall Climbing","old":400,"new":500},{"activity":"Jumping Castle","old":400,"new":500},{"activity":"Leap of Faith","old":400,"new":500},{"activity":"Horse Riding","old":400,"new":500},{"activity":"Archery","old":400,"new":500},{"activity":"Tubby","old":400,"new":500}]},{"date":"2025-05-27","label":"May 2025 \u2014 Major summer increase","changes":[{"activity":"Entry","old":1200,"new":1600},{"activity":"Chairlift","old":1500,"new":2000},{"activity":"Express Chairlift","old":2000,"new":2500},{"activity":"Chairlift Top","old":1000,"new":1200},{"activity":"Zipline","old":3500,"new":5000},{"activity":"Zipline Top","old":2500,"new":3000},{"activity":"Giant Swing","old":2500,"new":3000},{"activity":"Slingshot","old":6500,"new":7500},{"activity":"Deal - GS+CL","old":3000,"new":4000},{"activity":"Deal - CL+ZL+GS","old":4500,"new":6500},{"activity":"Horse Riding","old":500,"new":800}]},{"date":"2025-07-21","label":"Jul 2025 \u2014 Peak season increase","changes":[{"activity":"Entry","old":1600,"new":1900},{"activity":"Chairlift","old":2000,"new":2300},{"activity":"Express Chairlift","old":2500,"new":2900},{"activity":"Chairlift Top","old":1200,"new":1400},{"activity":"Zipline","old":5000,"new":5700},{"activity":"Zipline Top","old":3000,"new":3400},{"activity":"Giant Swing","old":3000,"new":3400},{"activity":"Slingshot","old":7500,"new":8500},{"activity":"Deal - GS+CL","old":4000,"new":4600},{"activity":"Deal - CL+ZL+GS","old":6500,"new":7400},{"activity":"VR Gaming","old":500,"new":600},{"activity":"Wall Climbing","old":500,"new":600},{"activity":"Jumping Castle","old":500,"new":600},{"activity":"Leap of Faith","old":500,"new":600},{"activity":"Horse Riding","old":800,"new":950},{"activity":"Archery","old":500,"new":600},{"activity":"Tubby","old":500,"new":600}]},{"date":"2025-10-13","label":"Oct 2025 \u2014 Shoulder reduction","changes":[{"activity":"Entry","old":1900,"new":1500},{"activity":"Chairlift","old":2300,"new":1600},{"activity":"Express Chairlift","old":2900,"new":2000},{"activity":"Chairlift Top","old":1400,"new":1000},{"activity":"Zipline","old":5700,"new":4600},{"activity":"Zipline Top","old":3400,"new":2700}]},{"date":"2026-01-14","label":"Jan 2026 \u2014 Revert to actual","note":"Back to actual prices","changes":[]},{"date":"2026-03-18","label":"Mar 2026 \u2014 Spring increase","changes":[{"activity":"Entry","old":1900,"new":2200},{"activity":"Chairlift","old":2300,"new":2800},{"activity":"Express Chairlift","old":2900,"new":3400},{"activity":"Chairlift Top","old":1400,"new":1700},{"activity":"Giant Swing","old":3400,"new":3800},{"activity":"Deal - GS+CL","old":4600,"new":5400},{"activity":"Deal - CL+ZL+GS","old":7400,"new":7800}]},{"date":"2026-03-25","label":"Mar 2026 \u2014 Partial rollback","changes":[{"activity":"Entry","old":2200,"new":2100},{"activity":"Chairlift","old":2800,"new":2500},{"activity":"Express Chairlift","old":3400,"new":2900},{"activity":"Chairlift Top","old":1700,"new":1500},{"activity":"Zipline","old":5700,"new":5900},{"activity":"Zipline Top","old":3400,"new":3500},{"activity":"Giant Swing","old":3800,"new":3500},{"activity":"Deal - GS+CL","old":5400,"new":4900},{"activity":"VR Gaming","old":600,"new":700},{"activity":"Wall Climbing","old":600,"new":700},{"activity":"Jumping Castle","old":600,"new":700},{"activity":"Leap of Faith","old":600,"new":700},{"activity":"Archery","old":600,"new":700},{"activity":"Tubby","old":600,"new":700}]},{"date":"2026-04-01","label":"Apr 2026 \u2014 Post-Eid reduction","changes":[{"activity":"Entry","old":2100,"new":1900},{"activity":"Chairlift","old":2500,"new":2300},{"activity":"Chairlift Top","old":1500,"new":1400},{"activity":"Zipline","old":5900,"new":5700},{"activity":"Zipline Top","old":3500,"new":3400},{"activity":"Giant Swing","old":3500,"new":3400},{"activity":"Deal - GS+CL","old":4900,"new":4600},{"activity":"Deal - CL+ZL+GS","old":7800,"new":7400},{"activity":"VR Gaming","old":700,"new":600},{"activity":"Wall Climbing","old":700,"new":600},{"activity":"Jumping Castle","old":700,"new":600},{"activity":"Leap of Faith","old":700,"new":600},{"activity":"Archery","old":700,"new":600},{"activity":"Tubby","old":700,"new":600}]},{"date":"2026-04-17","label":"Apr 2026 \u2014 Major reduction","changes":[{"activity":"Entry","old":1900,"new":1200},{"activity":"Chairlift","old":2300,"new":1400},{"activity":"Express Chairlift","old":2900,"new":1800},{"activity":"Chairlift Top","old":1400,"new":900},{"activity":"Zipline","old":5700,"new":2000},{"activity":"Zipline Top","old":3400,"new":2000},{"activity":"Giant Swing","old":3400,"new":2000},{"activity":"Slingshot","old":8500,"new":5000}]}];
+      populatePriceEventSelect();
+      buildTrendCharts();
+    } else status.textContent = 'Error: ' + res.error;
+  } catch(e) { status.textContent = 'Network error'; }
+}
+
+async function saveHolidayFromForm() {
+  const h = {
+    name:  document.getElementById('hol-name').value.trim(),
+    type:  document.getElementById('hol-type').value,
+    start: document.getElementById('hol-start').value,
+    end:   document.getElementById('hol-end').value,
+    year:  document.getElementById('hol-start').value.slice(0,4)
+  };
+  if (!h.name||!h.start||!h.end) { showToast('Name, start and end required','error'); return; }
+  const status = document.getElementById('upload-holidays-status');
+  try {
+    const res = await gasPost({ action: 'SAVE_HOLIDAY', pin: '1234', holiday: h });
+    if (res.success) {
+      holidaysData.push(h);
+      status.textContent = '✓ Holiday saved';
+      document.getElementById('add-holiday-form').style.display = 'none';
+      renderHolidaysLegend();
+      buildTrendCharts();
+    } else status.textContent = 'Error: ' + res.error;
+  } catch(e) { status.textContent = 'Network error'; }
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function updateTrendsStatus() {
+  const bar = document.getElementById('trends-data-status');
+  if (!trendsData || !trendsData.length) return;
+  bar.style.display = '';
+  const dates = trendsData.map(r=>r['Date']||r.d||'').filter(Boolean).sort();
+  document.getElementById('trends-status-days').textContent = trendsData.length.toLocaleString('en-PK') + ' days of historical data';
+  document.getElementById('trends-status-range').textContent = 'Range: ' + (dates[0]||'') + ' to ' + (dates[dates.length-1]||'');
+  document.getElementById('trends-status-prices').textContent = priceChanges.length + ' price change events';
+  document.getElementById('trends-status-holidays').textContent = holidaysData.length + ' holiday periods';
+}
+
+function renderHolidaysLegend() {
+  const legend = document.getElementById('trends-holidays-legend');
+  const list   = document.getElementById('holidays-legend-list');
+  if (!list || !holidaysData.length) return;
+  legend.style.display = '';
+  list.innerHTML = holidaysData.map(h =>
+    `<div style="display:flex;align-items:center;gap:6px;font-size:12px;">
+      <div style="width:12px;height:12px;background:rgba(201,146,42,0.4);border:1px solid #c9922a;border-radius:2px;"></div>
+      <span style="font-weight:600;">${h.name}</span>
+      <span style="color:var(--muted);">${h.start} – ${h.end}</span>
+    </div>`
+  ).join('');
 }
 
 </script>
