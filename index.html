@@ -697,7 +697,7 @@
           <!-- Daily Sales Excel upload -->
           <div>
             <div style="font-weight:600;margin-bottom:6px;font-size:14px;">📊 Daily Sales Excel</div>
-            <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Upload FY Excel files (No of tickets + Revenue tabs). Accepted: FY2022-23, FY2023-24, FY2024-25 format.</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Upload the standardised MJSR_Sales_FY files. Tab must be named "Daily Sales Data". Download templates from the Admin tab if needed.</div>
             <input type="file" id="upload-sales-file" accept=".xlsx,.xls" style="display:none" onchange="handleSalesUpload(this)">
             <button class="btn btn-outline btn-sm" onclick="document.getElementById('upload-sales-file').click()">Choose Excel File</button>
             <div id="upload-sales-status" style="font-size:12px;color:var(--muted);margin-top:8px;"></div>
@@ -4396,7 +4396,7 @@ async function handleSalesUpload(input) {
       status.textContent = 'Parsing ' + wb.SheetNames.length + ' tabs...';
 
       const rows = parseExcelSalesFile(wb);
-      if (!rows.length) { status.textContent = `No data parsed from "${file.name}". Tabs found: ${wb.SheetNames.join(', ')}. Check browser console (F12) for details.`; return; }
+      if (!rows.length) { status.textContent = `No data found. Make sure you are uploading the standardised MJSR_Sales_FY file (tab must be named "Daily Sales Data").`; return; }
 
       status.textContent = `Parsed ${rows.length} days. Uploading to sheet...`;
       const res = await gasPost({ action: 'UPLOAD_DAILY_SALES', pin: '1234', rows });
@@ -4419,103 +4419,72 @@ async function handleSalesUpload(input) {
 
 function parseExcelSalesFile(wb) {
   const XLSX = window.XLSX;
-  const rows = [];
 
-  // Find the best tab — explicit priority order
-  // 1. Prefer ticket count tabs
-  // 2. Fall back to plain Revenue tab (not "Revenue increased")
-  // 3. Last resort: any data tab
-  const tixSheet = wb.SheetNames.find(n => {
-    const l = n.toLowerCase().trim();
-    return l.includes('no of ticket') || l.includes('no. of ticket') ||
-           l.includes('no.of ticket') || l === 'tickets' ||
-           l.includes('number of ticket');
-  });
-
-  const revSheet = wb.SheetNames.find(n => {
-    const l = n.toLowerCase().trim();
-    // Must be plain Revenue or Sales tab — exclude variants like "Revenue increased"
-    return l === 'revenue' ||
-           l === 'sales' ||
-           l.startsWith('sales -') ||
-           l.startsWith('sales-') ||
-           (l.startsWith('sales') && !l.includes('ticket') && !l.includes('increased'));
-  });
-
-  const sheetToUse = tixSheet || revSheet || wb.SheetNames.find(n => {
-    const l = n.toLowerCase();
-    return !l.includes('summary') && !l.includes('commission') &&
-           !l.includes('restaurant') && !l.includes('ski shop') &&
-           !l.includes('increased') && !l.includes('breakup') &&
-           !l.includes('compare') && !l.includes('sheet1');
-  });
-
-  if (!sheetToUse) {
-    console.warn('No suitable tab found. Available:', wb.SheetNames);
+  // Fixed format: tab must be named exactly "Daily Sales Data"
+  const ws = wb.Sheets['Daily Sales Data'];
+  if (!ws) {
+    console.warn('Tab "Daily Sales Data" not found. Available:', wb.SheetNames);
     return [];
   }
 
-  console.log('Tabs available:', wb.SheetNames);
-  console.log('Using tab:', sheetToUse);
-  const ws = wb.Sheets[sheetToUse];
+  // Row 1 = title, Row 2 = headers, Row 3+ = data
   const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
+  const hdrs = data[1]; // row 2 = headers
+  if (!hdrs) return [];
 
-  // Find header row — contains "Date of sale" or "Date"
-  let hRowIdx = data.findIndex(r => r && r.some(v => v && String(v).toLowerCase().includes('date')));
-  if (hRowIdx < 0) return [];
+  const dateCol  = hdrs.findIndex(h => h && String(h).toLowerCase().includes('date'));
+  const totalCol = hdrs.findIndex(h => h && String(h).toLowerCase().includes('total visitor'));
+  if (dateCol < 0) { console.warn('No Date column found in row 2'); return []; }
 
-  const hdrs = data[hRowIdx];
-  const dateCol = hdrs.findIndex(h => h && String(h).toLowerCase().includes('date'));
-  if (dateCol < 0) return [];
-
-  // Skip known non-activity columns (total, grand total etc)
-  const skipCols = new Set();
-  hdrs.forEach((h,i) => {
-    if (!h) return;
-    const hl = String(h).toLowerCase();
-    if (hl.includes('total') || hl.includes('grand') || hl.includes('gv') || hl.includes('samsons inn')) {
-      skipCols.add(i);
-    }
+  // Map all other columns directly by header name
+  const colMap = {};
+  hdrs.forEach((h, i) => {
+    if (i === dateCol || i === totalCol || !h) return;
+    const name = String(h).trim();
+    if (name === 'TOTAL') return;
+    colMap[i] = name;
   });
 
+  const rows = [];
   const seenDates = new Set();
 
-  for (let i = hRowIdx + 1; i < data.length; i++) {
+  for (let i = 2; i < data.length; i++) {
     const row = data[i];
-    if (!row || !row[dateCol]) continue;
+    if (!row) continue;
 
-    // Parse date — handle Excel serial numbers and Date objects
+    // Parse date
+    const raw = row[dateCol];
+    if (!raw) continue;
     let dateStr = '';
-    const rawDate = row[dateCol];
-    if (rawDate instanceof Date) {
-      dateStr = rawDate.toISOString().slice(0, 10);
-    } else if (typeof rawDate === 'number' && rawDate > 40000) {
-      // Excel serial date
-      const d = new Date(Math.round((rawDate - 25569) * 86400 * 1000));
-      dateStr = d.toISOString().slice(0, 10);
-    } else if (typeof rawDate === 'string') {
-      dateStr = rawDate.slice(0, 10);
+    if (raw instanceof Date) {
+      dateStr = raw.toISOString().slice(0, 10);
+    } else if (typeof raw === 'number' && raw > 40000) {
+      dateStr = new Date(Math.round((raw - 25569) * 86400 * 1000)).toISOString().slice(0, 10);
+    } else {
+      dateStr = String(raw).slice(0, 10);
     }
-
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) continue;
-    if (seenDates.has(dateStr)) continue; // skip summary rows
+    if (seenDates.has(dateStr)) continue;
     seenDates.add(dateStr);
 
+    // Total visitors
+    const totalV = totalCol >= 0 ? (Number(row[totalCol]) || 0) : 0;
+
+    // Activity counts
     const acts = {};
-    hdrs.forEach((h, j) => {
-      if (j === dateCol || !h || skipCols.has(j)) return;
-      const canon = clientCanonical(String(h));
-      if (!canon) return;
-      const v = typeof row[j] === 'number' ? row[j] : parseFloat(String(row[j] || '').replace(/,/g, '')) || 0;
-      if (v > 0) acts[canon] = (acts[canon] || 0) + v;
+    Object.entries(colMap).forEach(([j, name]) => {
+      const v = typeof row[j] === 'number' ? row[j] :
+                parseFloat(String(row[j] || '').replace(/,/g, '')) || 0;
+      if (v > 0) acts[name] = (acts[name] || 0) + v;
     });
 
-    const total = Object.values(acts).reduce((s, v) => s + v, 0);
+    const total = totalV > 0 ? totalV : Object.values(acts).reduce((s,v)=>s+v, 0);
     if (total > 0) rows.push({ d: dateStr, t: acts, r: {}, v: total, x: 0 });
   }
 
+  console.log(`Parsed ${rows.length} days from "Daily Sales Data" tab`);
   return rows;
-}  // end parseExcelSalesFile
+}
 
 function clientCanonical(col) {
   const c = col.toLowerCase().trim();
