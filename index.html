@@ -447,6 +447,7 @@
     <button class="sub-tab locked-tab" id="tab-historical" onclick="requirePin('historical',this)">📊 Historical Intel</button>
     <button class="sub-tab locked-tab" id="tab-events"     onclick="requirePin('events',this)">🎯 Events &amp; Impact</button>
     <button class="sub-tab locked-tab" id="tab-weather"    onclick="requirePin('weather',this)">🌦 Weather Intel</button>
+    <button class="sub-tab locked-tab" id="tab-impacts"   onclick="requirePin('impacts',this)">⚡ External Impacts</button>
     <button class="sub-tab locked-tab" id="tab-admin"     onclick="requirePin('admin',this)">Admin</button>
   </div>
 </div>
@@ -854,19 +855,57 @@
 
   <!-- Price Impact view -->
   <div id="trends-view-price-impact" style="display:none;">
+    <!-- Event selector -->
     <div class="card" style="margin-bottom:16px;">
       <div class="card-body" style="padding:12px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
         <span style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;">Price Event</span>
-        <select class="form-input" id="trends-price-event-select" onchange="buildPriceImpactChart()" style="padding:5px 10px;font-size:12px;width:240px;"></select>
+        <select class="form-input" id="trends-price-event-select" onchange="buildPriceImpactChart()" style="padding:5px 10px;font-size:12px;width:280px;"></select>
+        <div id="price-reliability-badge" style="margin-left:8px;"></div>
+        <div id="price-seasonal-note" style="font-size:12px;color:var(--muted);font-style:italic;flex:1;"></div>
       </div>
     </div>
-    <div class="card">
-      <div class="card-header"><span class="card-title">Footfall Before vs After Price Change</span><span class="card-badge badge-gold" id="price-impact-badge">30 days window</span></div>
-      <div class="card-body"><div class="chart-wrap" style="height:300px"><canvas id="chartPriceImpact"></canvas></div></div>
+
+    <!-- Reliability warning banner -->
+    <div id="price-reliability-banner" style="display:none;margin-bottom:16px;padding:12px 18px;border-radius:10px;border-left:4px solid #c9922a;background:#fdf6e3;">
+      <div style="font-weight:600;font-size:13px;color:#a07010;margin-bottom:4px;" id="price-banner-title"></div>
+      <div style="font-size:12px;color:#7a5a00;" id="price-banner-body"></div>
     </div>
-    <div id="price-impact-summary" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;"></div>
+
+    <!-- KPI tiles: raw + adjusted side by side -->
+    <div id="price-impact-summary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:20px;"></div>
+
+    <!-- Two charts side by side: raw + YoY adjusted -->
+    <div class="chart-row" style="margin-bottom:16px;">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Footfall — Before vs After</span>
+          <span class="card-badge badge-gold">Raw 30-day window</span>
+        </div>
+        <div style="padding:8px 20px 0;font-size:11px;color:var(--muted);font-style:italic;" id="price-raw-note">Gold = before · Orange = event day · Navy = after</div>
+        <div class="card-body"><div class="chart-wrap" style="height:280px"><canvas id="chartPriceImpact"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Seasonally Adjusted — vs Same Period Last Year</span>
+          <span class="card-badge badge-navy">YoY Adjusted</span>
+        </div>
+        <div style="padding:8px 20px 0;font-size:11px;color:var(--muted);font-style:italic;">Same 30-day window in prior year shown as reference baseline</div>
+        <div class="card-body"><div class="chart-wrap" style="height:280px"><canvas id="chartPriceImpactAdj"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- All events delta summary -->
     <div class="card">
-      <div class="card-header"><span class="card-title">All Price Changes — Footfall Delta</span><span class="card-badge badge-navy">30-day avg comparison</span></div>
+      <div class="card-header">
+        <span class="card-title">All Price Changes — Footfall Delta</span>
+        <span class="card-badge badge-navy">30-day avg · colour = reliability</span>
+      </div>
+      <div style="padding:8px 20px 0;font-size:11px;color:var(--muted);">
+        <span style="margin-right:16px;"><span style="display:inline-block;width:10px;height:10px;background:rgba(45,122,78,0.8);border-radius:2px;margin-right:4px;vertical-align:middle;"></span>Increase (reliable)</span>
+        <span style="margin-right:16px;"><span style="display:inline-block;width:10px;height:10px;background:rgba(192,57,43,0.8);border-radius:2px;margin-right:4px;vertical-align:middle;"></span>Decrease (reliable)</span>
+        <span style="margin-right:16px;"><span style="display:inline-block;width:10px;height:10px;background:rgba(201,146,42,0.6);border-radius:2px;margin-right:4px;vertical-align:middle;"></span>Seasonal transition — interpret with caution</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:#ccc;border-radius:2px;margin-right:4px;vertical-align:middle;"></span>Insufficient data</span>
+      </div>
       <div class="card-body"><div class="chart-wrap" style="height:260px"><canvas id="chartPriceDeltas"></canvas></div></div>
     </div>
   </div>
@@ -877,6 +916,77 @@
       <div class="card-header"><span class="card-title">Holiday Periods</span></div>
       <div class="card-body" style="display:flex;flex-wrap:wrap;gap:10px;" id="holidays-legend-list"></div>
     </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ EXTERNAL IMPACTS -->
+<div class="page" id="page-impacts">
+  <div class="page-header">
+    <div>
+      <div class="page-title">External Impact Database</div>
+      <div class="page-sub">Macro events affecting tourism to Swat &amp; KPK — floods, security, political, economic · 2022 to present</div>
+    </div>
+    <button class="btn btn-gold btn-sm" onclick="showImpactForm()">+ Add Event</button>
+  </div>
+
+  <!-- Add form -->
+  <div id="impact-form-card" class="card" style="display:none;margin-bottom:20px;">
+    <div class="card-header"><span class="card-title">Add External Impact Event</span></div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:14px;">
+        <div><label class="form-label">Start Date</label><input type="date" class="form-input" id="imp-start"></div>
+        <div><label class="form-label">End Date</label><input type="date" class="form-input" id="imp-end"></div>
+        <div><label class="form-label">Category</label>
+          <select class="form-input" id="imp-cat">
+            <option>Flood</option><option>Security</option><option>Political</option>
+            <option>Economic</option><option>Infrastructure</option><option>Health</option><option>Other</option>
+          </select>
+        </div>
+        <div><label class="form-label">Severity</label>
+          <select class="form-input" id="imp-sev">
+            <option>High</option><option>Medium</option><option>Low</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:14px;align-items:end;">
+        <div><label class="form-label">Title</label><input type="text" class="form-input" id="imp-title" placeholder="e.g. Flash Floods — Swat Valley"></div>
+        <div><label class="form-label">Direction</label>
+          <select class="form-input" id="imp-dir">
+            <option>Negative</option><option>Positive</option><option>Mixed</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="saveImpactEvent()">Save</button>
+      </div>
+      <div style="margin-top:12px;"><label class="form-label">Detail / Notes</label>
+        <input type="text" class="form-input" id="imp-detail" placeholder="Brief description of impact on tourism to Swat/KPK">
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-body" style="padding:12px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;">Filter</span>
+      <button class="yoy-pill active" onclick="filterImpacts('all',this)">All</button>
+      <button class="yoy-pill" onclick="filterImpacts('Flood',this)">🌊 Flood</button>
+      <button class="yoy-pill" onclick="filterImpacts('Security',this)">🔒 Security</button>
+      <button class="yoy-pill" onclick="filterImpacts('Political',this)">🏛 Political</button>
+      <button class="yoy-pill" onclick="filterImpacts('Economic',this)">📉 Economic</button>
+      <button class="yoy-pill" onclick="filterImpacts('Infrastructure',this)">🚧 Infrastructure</button>
+      <span id="impacts-count" style="margin-left:auto;font-size:12px;color:var(--muted);"></span>
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  <div id="impacts-list"></div>
+
+  <!-- Footfall correlation chart -->
+  <div class="card" style="margin-top:20px;">
+    <div class="card-header">
+      <span class="card-title">Monthly Footfall with External Impact Periods</span>
+      <span class="card-badge badge-navy">Shaded = active impact event</span>
+    </div>
+    <div class="card-body"><div class="chart-wrap" style="height:320px"><canvas id="chartImpactsOverlay"></canvas></div></div>
   </div>
 </div>
 
@@ -1523,6 +1633,7 @@ function showPage(id, btn) {
   if (id==='trends')                 loadTrendsPage();
   if (id==='events')                 loadEventsPage();
   if (id==='weather')                loadWeatherPage();
+  if (id==='impacts')                loadImpactsPage();
 }
 
 // ─── CONNECTION STATUS ────────────────────────────────────────
@@ -4639,6 +4750,326 @@ function renderHolidaysLegend() {
       <span style="color:var(--muted);">${h.start} – ${h.end}</span>
     </div>`
   ).join('');
+}
+
+
+// ─── EXTERNAL IMPACTS DATABASE ───────────────────────────────
+
+const IMPACT_COLORS = {
+  Flood:          '#2563eb',
+  Security:       '#dc2626',
+  Political:      '#d97706',
+  Economic:       '#7c3aad',
+  Infrastructure: '#64748b',
+  Health:         '#059669',
+  Other:          '#374151'
+};
+
+const IMPACT_ICONS = {
+  Flood:'🌊', Security:'🔒', Political:'🏛', Economic:'📉',
+  Infrastructure:'🚧', Health:'🏥', Other:'⚡'
+};
+
+let externalImpacts = [{"date_start":"2022-08-01","date_end":"2022-09-30","category":"Flood","severity":"High","title":"Pakistan Super Floods 2022","detail":"Catastrophic nationwide flooding. Swat valley severely affected. KKH and Swat Motorway damaged. Resort access disrupted. One-third of Pakistan underwater.","direction":"Negative","source":"NDMA / International media"},{"date_start":"2022-07-14","date_end":"2022-07-20","category":"Flood","severity":"Medium","title":"Pre-monsoon Flash Floods \u2014 Swat","detail":"Early flash floods in Swat district damaged access roads before main monsoon season.","direction":"Negative","source":"Provincial disaster authority"},{"date_start":"2023-07-01","date_end":"2023-08-31","category":"Flood","severity":"Medium","title":"Monsoon Flooding 2023 \u2014 KPK","detail":"Seasonal flooding in KPK including Swat tributaries. Less severe than 2022 but disrupted road access periodically.","direction":"Negative","source":"PDMA KPK"},{"date_start":"2024-08-01","date_end":"2024-09-15","category":"Flood","severity":"High","title":"Flash Floods \u2014 Swat & Dir 2024","detail":"Severe flash flooding in Swat, Upper Dir and Lower Dir. Multiple roads washed out including approach to Malam Jabba. Resort access severely restricted.","direction":"Negative","source":"PDMA KPK / Local reports"},{"date_start":"2022-11-01","date_end":"2023-03-31","category":"Security","severity":"High","title":"TTP Resurgence \u2014 KPK Security Deterioration","detail":"Significant increase in militant activity across KPK following TTP ceasefire collapse (Nov 2022). Travel advisories issued. Tourism confidence affected across region.","direction":"Negative","source":"ISPR / Foreign ministry advisories"},{"date_start":"2023-09-01","date_end":"2024-02-28","category":"Security","severity":"Medium","title":"Ongoing Security Concerns \u2014 KPK","detail":"Continued security incidents in KPK. Several districts under curfew periodically. Swat valley relatively stable but regional perception affected tourism.","direction":"Negative","source":"Provincial government reports"},{"date_start":"2023-05-09","date_end":"2023-05-15","category":"Political","severity":"High","title":"May 9 Political Unrest \u2014 Nationwide","detail":"Nationwide protests and violence following arrest of PTI chairman. Curfew in multiple cities. Transport disruption affected tourist movement to KPK resorts during peak spring season.","direction":"Negative","source":"National media"},{"date_start":"2024-02-08","date_end":"2024-02-12","category":"Political","severity":"Medium","title":"General Election 2024 \u2014 Travel Disruption","detail":"General election disrupted domestic travel. Internet shutdowns and movement restrictions reduced tourist arrivals during election week.","direction":"Negative","source":"ECP / National media"},{"date_start":"2024-10-01","date_end":"2024-11-30","category":"Political","severity":"Medium","title":"PTI Protest March \u2014 D-Chowk Islamabad","detail":"Major PTI protest march to Islamabad. KPK-Islamabad route disrupted. Swat Motorway and M-1 affected. Tourist traffic to KPK resorts suppressed.","direction":"Negative","source":"National media"},{"date_start":"2022-06-01","date_end":"2023-06-30","category":"Economic","severity":"High","title":"Pakistan Economic Crisis \u2014 IMF Bailout Period","detail":"Pakistan entered IMF program. Rupee devalued from ~200 to ~280/USD. Fuel prices doubled. Inflation peaked at 38%. Discretionary spending on tourism severely curtailed.","direction":"Negative","source":"SBP / IMF"},{"date_start":"2023-07-01","date_end":"2024-06-30","category":"Economic","severity":"High","title":"Continued Inflation \u2014 PKR at Historic Lows","detail":"PKR reached 307/USD (Sep 2023). CPI inflation remained above 25%. Middle-class tourism spending constrained. Fuel cost increases raised travel costs significantly.","direction":"Negative","source":"SBP / PBS"},{"date_start":"2024-07-01","date_end":"2025-06-30","category":"Economic","severity":"Medium","title":"Gradual Economic Stabilisation","detail":"PKR stabilised around 278/USD. Inflation declined to ~12% by mid-2025. Fuel prices reduced. Some recovery in domestic tourism spending power.","direction":"Positive","source":"SBP / PBS"},{"date_start":"2025-01-01","date_end":"2025-12-31","category":"Economic","severity":"Medium","title":"Middle East Conflict \u2014 Gulf Remittances Impact","detail":"Ongoing Middle East conflict (Gaza/Lebanon/Yemen) created uncertainty for Pakistani diaspora in Gulf. Remittance flows affected. Tourism spending from Gulf-based Pakistanis returning home for holidays reduced.","direction":"Negative","source":"SBP remittance data / Regional media"},{"date_start":"2022-08-15","date_end":"2022-12-31","category":"Infrastructure","severity":"High","title":"Swat Motorway & Access Road Damage \u2014 Post Floods","detail":"2022 floods damaged Swat Motorway and multiple access roads to Malam Jabba. Partial closures and reduced capacity significantly limited visitor numbers during recovery period.","direction":"Negative","source":"NHA / Provincial government"},{"date_start":"2024-08-15","date_end":"2024-10-31","category":"Infrastructure","severity":"High","title":"Road Damage \u2014 2024 Flood Aftermath","detail":"2024 flash floods damaged approach roads to Malam Jabba. NHA repair operations required. Reduced access capacity during peak autumn season.","direction":"Negative","source":"NHA / Samsons operations team"},{"date_start":"2023-01-01","date_end":"2023-03-31","category":"Infrastructure","severity":"Medium","title":"Swat Motorway Phase 2 \u2014 Improved Access","detail":"Extended sections of Swat Motorway operational. Reduced Islamabad-Swat travel time significantly. Positive impact on visitor numbers from central Pakistan.","direction":"Positive","source":"NHA"},{"date_start":"2024-12-01","date_end":"2025-02-28","category":"Infrastructure","severity":"Low","title":"Improved Winter Road Access","detail":"Better snow clearing and road maintenance enabled stronger winter season access. Contributed to record winter 2024-25 visitor numbers.","direction":"Positive","source":"Samsons operations records"}];
+let impactsFilter = 'all';
+let impactsChart = null;
+
+// Price event reliability metadata
+const PRICE_EVENT_META = [{"date":"2023-04-19","label":"Apr 2023 \u2014 Summer increase","direction":"increase","seasonal":"high","note":"Apr = start of summer season. Footfall rises sharply regardless of price."},{"date":"2024-05-25","label":"May 2024 \u2014 Giant Swing promo","direction":"decrease","seasonal":"high","note":"May = peak summer ramp-up. Seasonal surge dominates any price signal."},{"date":"2024-08-19","label":"Aug 2024 \u2014 Broad increase","direction":"increase","seasonal":"low","note":"Mid-summer to shoulder. Comparable windows. Most reliable event in dataset."},{"date":"2025-05-27","label":"May 2025 \u2014 Major summer increase","direction":"increase","seasonal":"high","note":"May = peak summer ramp-up. Seasonal surge dominates any price signal."},{"date":"2025-07-21","label":"Jul 2025 \u2014 Peak season increase","direction":"increase","seasonal":"medium","note":"Peak season. Demand strong \u2014 price elasticity lower at peak."},{"date":"2025-10-13","label":"Oct 2025 \u2014 Shoulder reduction","direction":"decrease","seasonal":"medium","note":"Shoulder to low season transition. Seasonal decline expected regardless."},{"date":"2026-01-14","label":"Jan 2026 \u2014 Revert to actual","direction":"neutral","seasonal":"low","note":"Mid-winter. Stable season. Clean window when FY2025-26 data available."},{"date":"2026-03-18","label":"Mar 2026 \u2014 Spring increase","direction":"increase","seasonal":"medium","note":"Late winter to spring. Some seasonal uplift expected."},{"date":"2026-03-25","label":"Mar 2026 \u2014 Partial rollback","direction":"decrease","seasonal":"medium","note":"Only 7 days after previous event. Confounded by prior change."},{"date":"2026-04-01","label":"Apr 2026 \u2014 Post-Eid reduction","direction":"decrease","seasonal":"medium","note":"Post-Eid. Eid surge ending. Seasonal decline expected."},{"date":"2026-04-17","label":"Apr 2026 \u2014 Major reduction","direction":"decrease","seasonal":"low","note":"Mid-April. Stable period. Clean window when FY2025-26 data available."}];
+
+function getEventMeta(date) {
+  return PRICE_EVENT_META.find(m => m.date === date) || { seasonal: 'low', note: '' };
+}
+
+// ── Page load ─────────────────────────────────────────────────
+function loadImpactsPage() {
+  renderImpactsList();
+  buildImpactsOverlayChart();
+}
+
+// ── Render list ───────────────────────────────────────────────
+function filterImpacts(cat, btn) {
+  impactsFilter = cat;
+  document.querySelectorAll('#page-impacts .yoy-pill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderImpactsList();
+}
+
+function renderImpactsList() {
+  const list = document.getElementById('impacts-list');
+  const count = document.getElementById('impacts-count');
+  const filtered = impactsFilter === 'all'
+    ? externalImpacts
+    : externalImpacts.filter(e => e.category === impactsFilter);
+
+  if (count) count.textContent = filtered.length + ' events';
+
+  if (!filtered.length) {
+    list.innerHTML = '<div class="card" style="padding:24px;text-align:center;color:var(--muted);">No events in this category.</div>';
+    return;
+  }
+
+  const sorted = [...filtered].sort((a,b) => b.date_start.localeCompare(a.date_start));
+  list.innerHTML = sorted.map((ev, i) => {
+    const color = IMPACT_COLORS[ev.category] || '#374151';
+    const icon  = IMPACT_ICONS[ev.category] || '⚡';
+    const dirColor = ev.direction === 'Negative' ? '#dc2626' : ev.direction === 'Positive' ? '#059669' : '#d97706';
+    const dirIcon  = ev.direction === 'Negative' ? '▼' : ev.direction === 'Positive' ? '▲' : '↔';
+    const sevBg = ev.severity === 'High' ? '#fde8e8' : ev.severity === 'Medium' ? '#fdf6e3' : '#f0f4f8';
+    const sevColor = ev.severity === 'High' ? '#dc2626' : ev.severity === 'Medium' ? '#a07010' : '#475569';
+    const origIdx = externalImpacts.indexOf(ev);
+    return `<div class="card" style="margin-bottom:10px;border-left:4px solid ${color};">
+      <div class="card-body" style="padding:14px 18px;">
+        <div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;">
+          <div style="font-size:22px;flex-shrink:0;">${icon}</div>
+          <div style="flex:1;min-width:200px;">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
+              <span style="font-weight:700;font-size:14px;color:var(--navy);">${ev.title}</span>
+              <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;background:${sevBg};color:${sevColor};">${ev.severity}</span>
+              <span style="font-size:11px;font-weight:700;color:${dirColor};">${dirIcon} ${ev.direction}</span>
+            </div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">${ev.date_start} → ${ev.date_end} · ${ev.category}</div>
+            <div style="font-size:13px;color:var(--text);">${ev.detail}</div>
+            ${ev.source ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;font-style:italic;">Source: ${ev.source}</div>` : ''}
+          </div>
+          <div style="display:flex;gap:8px;flex-shrink:0;">
+            <button class="btn btn-outline btn-sm" onclick="editImpact(${origIdx})" style="padding:4px 10px;font-size:11px;">Edit</button>
+            <button class="btn btn-outline btn-sm" onclick="deleteImpact(${origIdx})" style="padding:4px 10px;font-size:11px;color:var(--red);border-color:var(--red);">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Add / Edit / Delete ───────────────────────────────────────
+function showImpactForm(idx) {
+  const form = document.getElementById('impact-form-card');
+  form.style.display = '';
+  if (idx !== undefined) {
+    const ev = externalImpacts[idx];
+    document.getElementById('imp-start').value  = ev.date_start;
+    document.getElementById('imp-end').value    = ev.date_end;
+    document.getElementById('imp-cat').value    = ev.category;
+    document.getElementById('imp-sev').value    = ev.severity;
+    document.getElementById('imp-title').value  = ev.title;
+    document.getElementById('imp-dir').value    = ev.direction;
+    document.getElementById('imp-detail').value = ev.detail;
+    form.dataset.editIdx = idx;
+  } else {
+    document.getElementById('imp-start').value  = '';
+    document.getElementById('imp-end').value    = '';
+    document.getElementById('imp-title').value  = '';
+    document.getElementById('imp-detail').value = '';
+    delete form.dataset.editIdx;
+  }
+}
+
+async function saveImpactEvent() {
+  const ev = {
+    date_start: document.getElementById('imp-start').value,
+    date_end:   document.getElementById('imp-end').value,
+    category:   document.getElementById('imp-cat').value,
+    severity:   document.getElementById('imp-sev').value,
+    title:      document.getElementById('imp-title').value.trim(),
+    direction:  document.getElementById('imp-dir').value,
+    detail:     document.getElementById('imp-detail').value.trim(),
+    source:     ''
+  };
+  if (!ev.date_start || !ev.date_end || !ev.title) { showToast('Start date, end date and title required','error'); return; }
+
+  const form = document.getElementById('impact-form-card');
+  const editIdx = form.dataset.editIdx;
+
+  if (editIdx !== undefined) {
+    externalImpacts[parseInt(editIdx)] = ev;
+  } else {
+    externalImpacts.push(ev);
+  }
+
+  // Save to sheet
+  try {
+    await gasPost({ action: 'SAVE_EXTERNAL_IMPACTS', pin: '1234', impacts: externalImpacts });
+  } catch(e) {}
+
+  form.style.display = 'none';
+  delete form.dataset.editIdx;
+  renderImpactsList();
+  buildImpactsOverlayChart();
+  showToast('✓ Event saved','success');
+}
+
+function editImpact(idx)   { showImpactForm(idx); }
+
+async function deleteImpact(idx) {
+  if (!confirm('Delete this event?')) return;
+  externalImpacts.splice(idx, 1);
+  try { await gasPost({ action: 'SAVE_EXTERNAL_IMPACTS', pin: '1234', impacts: externalImpacts }); } catch(e) {}
+  renderImpactsList();
+  buildImpactsOverlayChart();
+  showToast('Event deleted','success');
+}
+
+// ── Overlay chart ─────────────────────────────────────────────
+function buildImpactsOverlayChart() {
+  if (impactsChart) { impactsChart.destroy(); impactsChart = null; }
+  if (!EMBEDDED_SALES || !EMBEDDED_SALES.length) return;
+
+  // Monthly footfall
+  const monthly = {};
+  EMBEDDED_SALES.forEach(r => {
+    const m = r.d.slice(0,7);
+    if (!monthly[m]) monthly[m] = 0;
+    monthly[m] += r.v;
+  });
+  if (dashData) dashData.daily.forEach(r => {
+    const m = r.date.slice(0,7);
+    if (!monthly[m]) monthly[m] = 0;
+    monthly[m] += r.visitors;
+  });
+
+  const mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const keys   = Object.keys(monthly).sort();
+  const labels = keys.map(k => mNames[parseInt(k.slice(5))-1] + ' ' + k.slice(2,4));
+  const data   = keys.map(k => monthly[k]);
+
+  // Build annotation boxes for each impact event
+  const annotations = {};
+  externalImpacts.forEach((ev, i) => {
+    const startM = ev.date_start.slice(0,7);
+    const endM   = ev.date_end.slice(0,7);
+    const si = keys.findIndex(k => k >= startM);
+    const ei = keys.findLastIndex(k => k <= endM);
+    if (si < 0 || ei < 0) return;
+    const color = IMPACT_COLORS[ev.category] || '#374151';
+    annotations['imp_'+i] = {
+      type: 'box',
+      xMin: si - 0.5, xMax: ei + 0.5,
+      backgroundColor: color + '22',
+      borderColor: color + '66',
+      borderWidth: 1,
+    };
+  });
+
+  const ctx = document.getElementById('chartImpactsOverlay');
+  if (!ctx) return;
+
+  impactsChart = new Chart(ctx.getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Monthly Visitors', data, backgroundColor: 'rgba(26,58,92,0.7)', borderRadius: 3 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ctx.raw.toLocaleString('en-PK') + ' visitors' } },
+        annotation: { annotations }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 20, font: { size: 9 } } },
+        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: v => v>=1000?Math.round(v/1000)+'K':v } }
+      }
+    }
+  });
+}
+
+// ── Updated buildPriceImpactChart with reliability flags ──────
+// Override the existing function to add reliability info
+const _origBuildPriceImpact = buildPriceImpactChart;
+buildPriceImpactChart = function() {
+  const sel = document.getElementById('trends-price-event-select');
+  if (!sel) return;
+  const idx   = parseInt(sel.value) || 0;
+  const event = priceChanges[idx];
+  if (!event) return;
+
+  const meta = getEventMeta(event.date);
+
+  // Show/hide reliability banner
+  const banner = document.getElementById('price-reliability-banner');
+  const badge  = document.getElementById('price-reliability-badge');
+  const note   = document.getElementById('price-seasonal-note');
+
+  if (banner) {
+    if (meta.seasonal === 'high') {
+      banner.style.display = '';
+      banner.style.borderLeftColor = '#c9922a';
+      banner.style.background = '#fdf6e3';
+      document.getElementById('price-banner-title').textContent = '⚠ Seasonal Transition Warning';
+      document.getElementById('price-banner-body').textContent =
+        meta.note + ' The raw before/after delta shown below should not be presented as a direct price impact result. Use the YoY-adjusted chart on the right for a fair comparison.';
+      if (badge) badge.innerHTML = '<span style="padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;background:#fde8e8;color:#dc2626;">⚠ Seasonal — Use with Caution</span>';
+    } else if (meta.seasonal === 'medium') {
+      banner.style.display = '';
+      banner.style.borderLeftColor = '#d97706';
+      banner.style.background = '#fffbeb';
+      document.getElementById('price-banner-title').textContent = 'ℹ Some Seasonal Influence';
+      document.getElementById('price-banner-body').textContent = meta.note + ' The YoY-adjusted chart provides a more reliable comparison.';
+      if (badge) badge.innerHTML = '<span style="padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;background:#fdf6e3;color:#a07010;">ℹ Some Seasonal Influence</span>';
+    } else {
+      banner.style.display = 'none';
+      if (badge) badge.innerHTML = '<span style="padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;background:#e3f5ec;color:#059669;">✓ Reliable Comparison</span>';
+    }
+  }
+  if (note) note.textContent = meta.note || '';
+
+  // Run original function
+  _origBuildPriceImpact();
+
+  // Build YoY adjusted chart
+  setTimeout(() => buildPriceImpactAdjChart(event, idx), 150);
+};
+
+function buildPriceImpactAdjChart(event, idx) {
+  if (trendsCharts.priceImpactAdj) { trendsCharts.priceImpactAdj.destroy(); delete trendsCharts.priceImpactAdj; }
+  const ctx = document.getElementById('chartPriceImpactAdj');
+  if (!ctx || !allDaysCache) return;
+
+  const MS = 86400000;
+  const evTs = new Date(event.date + 'T00:00:00').getTime();
+  if (isNaN(evTs)) return;
+
+  // Same 30-day window one year prior
+  const lyTs = evTs - 365 * MS;
+
+  const labels = [], currData = [], lyData = [];
+  for (let i = -30; i <= 30; i++) {
+    const d    = new Date(evTs + i * MS).toISOString().slice(0, 10);
+    const dLY  = new Date(lyTs + i * MS).toISOString().slice(0, 10);
+    labels.push(d.slice(5));
+    currData.push(allDaysCache[d]  || 0);
+    lyData.push(allDaysCache[dLY]  || 0);
+  }
+
+  const hasLYData = lyData.some(v => v > 0);
+
+  trendsCharts.priceImpactAdj = new Chart(ctx.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'This Year', data: currData, backgroundColor: 'rgba(26,58,92,0.7)', borderRadius: 3 },
+        { label: 'Same Period Last Year', data: lyData,
+          backgroundColor: 'rgba(201,146,42,0.4)', borderRadius: 3,
+          borderColor: 'rgba(201,146,42,0.8)', borderWidth: 1 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { font: { size: 10 }, boxWidth: 12 } },
+        tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.raw.toLocaleString('en-PK') } }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 20, font: { size: 9 } } },
+        y: { grid: { color: 'rgba(0,0,0,0.05)' } }
+      }
+    }
+  });
+
+  if (!hasLYData) {
+    ctx.parentElement.insertAdjacentHTML('afterend',
+      '<div style="font-size:12px;color:var(--muted);font-style:italic;padding:8px 0;">No prior-year data available for this period — will populate when FY2025-26 data is uploaded.</div>');
+  }
 }
 
 </script>
