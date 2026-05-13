@@ -818,7 +818,27 @@
         <span class="card-title">Daily Visitor Footfall — Jul 2022 to Present</span>
         <span class="card-badge badge-navy" id="trends-ftl-badge">Loading...</span>
       </div>
-      <div class="card-body"><div class="chart-wrap" style="height:320px"><canvas id="chartTrendsFootfall"></canvas></div></div>
+      <div class="card-body">
+        <div class="chart-wrap" style="height:320px"><canvas id="chartTrendsFootfall"></canvas></div>
+        <div id="footfall-overlay-legend" style="display:flex;flex-wrap:wrap;gap:16px;padding:10px 4px 0;font-size:11px;color:var(--muted);border-top:1px solid var(--border);margin-top:12px;">
+          <span style="font-weight:600;color:var(--navy);font-size:11px;align-self:center;">CHART LEGEND</span>
+          <span style="display:flex;align-items:center;gap:6px;">
+            <span style="display:inline-block;width:18px;border-top:2px dashed #2d7a4e;"></span>
+            Price decrease / reduction
+          </span>
+          <span style="display:flex;align-items:center;gap:6px;">
+            <span style="display:inline-block;width:18px;border-top:2px dashed #c0392b;"></span>
+            Price increase
+          </span>
+          <span style="display:flex;align-items:center;gap:6px;">
+            <span style="display:inline-block;width:14px;height:12px;background:rgba(201,146,42,0.25);border:1px solid rgba(201,146,42,0.5);border-radius:2px;"></span>
+            Eid / religious holiday period
+          </span>
+          <span style="display:flex;align-items:center;gap:6px;font-style:italic;">
+            Use "Show overlays" dropdown above to toggle on/off
+          </span>
+        </div>
+      </div>
     </div>
     <div class="chart-row">
       <div class="card">
