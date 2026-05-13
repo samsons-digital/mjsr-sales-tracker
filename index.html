@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MJSR Activity Sales Tracker</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -4330,10 +4330,29 @@ async function handleSalesUpload(input) {
   const file = input.files[0];
   if (!file) return;
   const status = document.getElementById('upload-sales-status');
+  status.textContent = 'Loading parser...';
+
+  // Ensure SheetJS is loaded — load on demand if the script tag failed
+  if (!window.XLSX) {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+      s.onload  = resolve;
+      s.onerror = () => {
+        // Fallback CDN
+        const s2 = document.createElement('script');
+        s2.src = 'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js';
+        s2.onload  = resolve;
+        s2.onerror = reject;
+        document.head.appendChild(s2);
+      };
+      document.head.appendChild(s);
+    });
+  }
+
+  if (!window.XLSX) { status.textContent = 'Error: Could not load Excel parser. Check your internet connection.'; return; }
+
   status.textContent = 'Reading file...';
-
-  if (!window.XLSX) { status.textContent = 'Error: SheetJS library not loaded. Please refresh the page.'; return; }
-
   const reader = new FileReader();
   reader.onload = async (e) => {
     try {
