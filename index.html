@@ -2346,12 +2346,6 @@ function filteredWeekly() {
 }
 
 // ─── TRENDS (legacy removed, replaced below) ──────────────
-function buildTrendCharts() {
-  if(!dashData) return;
-  buildWeeklyChart(); buildMonthlyChart(); buildYoYChart();
-  buildStackedChart('weekly'); buildWdWeChart(); buildTopActChart();
-}
-
 function buildWeeklyChart() {
   const ctx=document.getElementById('chartWeekly').getContext('2d');
   if(charts.weekly) charts.weekly.destroy();
@@ -4318,7 +4312,7 @@ function buildRevenueCharts(gran, showPrices, showHols) {
       plugins: {
         legend: { display: false },
         tooltip: { callbacks: { label: ctx => 'PKR ' + ctx.raw.toLocaleString('en-PK') }},
-
+      },
       scales: {
         x: { grid: { display: false }, ticks: { maxTicksLimit: 24, font: { size: 9 }}},
         y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: v => v>=1e6?'PKR '+(v/1e6).toFixed(0)+'M':v>=1e3?'PKR '+(v/1e3).toFixed(0)+'K':'PKR '+v }}
