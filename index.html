@@ -4385,26 +4385,33 @@ function parseExcelSalesFile(wb) {
   const XLSX = window.XLSX;
   const rows = [];
 
-  // Find the best tab — check all known patterns from actual files
+  // Find the best tab — explicit priority order
+  // 1. Prefer ticket count tabs
+  // 2. Fall back to plain Revenue tab (not "Revenue increased")
+  // 3. Last resort: any data tab
   const tixSheet = wb.SheetNames.find(n => {
     const l = n.toLowerCase().trim();
     return l.includes('no of ticket') || l.includes('no. of ticket') ||
            l.includes('no.of ticket') || l === 'tickets' ||
            l.includes('number of ticket');
   });
+
   const revSheet = wb.SheetNames.find(n => {
     const l = n.toLowerCase().trim();
-    return l === 'revenue' || l.includes('revenue') ||
-           l.includes('sales -') || l.includes('sales-') ||
-           (l.startsWith('sales') && !l.includes('ticket'));
+    // Must be plain Revenue or Sales tab — exclude variants like "Revenue increased"
+    return l === 'revenue' ||
+           l === 'sales' ||
+           l.startsWith('sales -') ||
+           l.startsWith('sales-') ||
+           (l.startsWith('sales') && !l.includes('ticket') && !l.includes('increased'));
   });
 
   const sheetToUse = tixSheet || revSheet || wb.SheetNames.find(n => {
-    // Last resort: any sheet that isn't summary/commission/restaurant/ski shop
     const l = n.toLowerCase();
     return !l.includes('summary') && !l.includes('commission') &&
            !l.includes('restaurant') && !l.includes('ski shop') &&
-           !l.includes('increased') && !l.includes('breakup');
+           !l.includes('increased') && !l.includes('breakup') &&
+           !l.includes('compare') && !l.includes('sheet1');
   });
 
   if (!sheetToUse) {
