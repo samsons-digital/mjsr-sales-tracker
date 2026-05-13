@@ -4191,6 +4191,13 @@ function aggregateByGran(gran) {
 }
 
 // ── Overlay helpers ───────────────────────────────────────────
+function buildAnnotations(dates, showPrices, showHols) {
+  return {
+    ...(showPrices ? getPriceAnnotations(dates) : {}),
+    ...(showHols   ? getHolidayBoxes(dates) : {})
+  };
+}
+
 function getPriceAnnotations(dates) {
   const annotations = {};
   priceChanges.forEach((pc, idx) => {
@@ -4232,65 +4239,6 @@ function getHolidayBoxes(dates, chartType) {
   return boxes;
 }
 
-// ── Canvas annotation fallback (works without chartjs-plugin-annotation) ──
-// Called after chart draws — paints price lines and holiday bands directly
-function makeCanvasAnnotationPlugin(dates, showPrices, showHols) {
-  return {
-    id: 'mjsr_annotations',
-    afterDraw(chart) {
-      const ctx = chart.ctx;
-      const xAxis = chart.scales.x;
-      const yAxis = chart.scales.y;
-      if (!xAxis || !yAxis) return;
-
-      const top    = yAxis.top;
-      const bottom = yAxis.bottom;
-
-      // Holiday boxes
-      if (showHols && holidaysData) {
-        holidaysData.forEach(h => {
-          const si = dates.findIndex(d => d >= h.start);
-          const ei = dates.findLastIndex(d => d <= h.end);
-          if (si < 0 || ei < si) return;
-          const x1 = xAxis.getPixelForValue(si - 0.5);
-          const x2 = xAxis.getPixelForValue(ei + 0.5);
-          ctx.save();
-          ctx.fillStyle = 'rgba(201,146,42,0.15)';
-          ctx.fillRect(x1, top, x2 - x1, bottom - top);
-          ctx.strokeStyle = 'rgba(201,146,42,0.4)';
-          ctx.lineWidth = 1;
-          ctx.strokeRect(x1, top, x2 - x1, bottom - top);
-          ctx.restore();
-        });
-      }
-
-      // Price change lines
-      if (showPrices && priceChanges) {
-        priceChanges.forEach(pc => {
-          const i = dates.findIndex(d => d >= pc.date);
-          if (i < 0) return;
-          const hasDecrease = pc.changes && pc.changes.some(c => c.new < c.old);
-          const color = hasDecrease ? '#2d7a4e' : '#c0392b';
-          const x = xAxis.getPixelForValue(i);
-          ctx.save();
-          ctx.strokeStyle = color;
-          ctx.lineWidth = 2;
-          ctx.setLineDash([5, 3]);
-          ctx.beginPath();
-          ctx.moveTo(x, top);
-          ctx.lineTo(x, bottom);
-          ctx.stroke();
-          ctx.setLineDash([]);
-          ctx.restore();
-        });
-      }
-    }
-  };
-}
-
-function destroyTrend(id) {
-  if (trendsCharts[id]) { trendsCharts[id].destroy(); delete trendsCharts[id]; }
-}
 
 // ── Footfall charts ───────────────────────────────────────────
 function buildFootfallCharts(gran, showPrices, showHols) {
@@ -4299,10 +4247,6 @@ function buildFootfallCharts(gran, showPrices, showHols) {
   const agg = aggregateByGran(gran);
   if (!agg.labels.length) return;
   const annotations = buildAnnotations(agg.dates || agg.labels, showPrices, showHols);
-
-  // annotation plugin registered globally below
-  const _ftlAnnotPlugin = makeCanvasAnnotationPlugin(agg.dates || agg.labels, showPrices, showHols);
-  Chart.register(_ftlAnnotPlugin);
 
   const badge = document.getElementById('trends-ftl-badge');
   if (badge) badge.textContent = agg.labels.length + ' ' + gran + ' points';
@@ -4326,7 +4270,6 @@ function buildFootfallCharts(gran, showPrices, showHols) {
       }
     }
   });
-  try { Chart.unregister(_ftlAnnotPlugin); } catch(e) {}
 
   // YoY
   const mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -4388,9 +4331,6 @@ function buildRevenueCharts(gran, showPrices, showHols) {
   if (!agg.labels.length) return;
   const annotations = buildAnnotations(agg.dates || agg.labels, showPrices, showHols);
 
-  const _revAnnotPlugin = makeCanvasAnnotationPlugin(agg.dates || agg.labels, showPrices, showHols);
-  Chart.register(_revAnnotPlugin);
-
   trendsCharts.revenue = new Chart(
     document.getElementById('chartTrendsRevenue').getContext('2d'), {
     type: 'bar',
@@ -4403,6 +4343,7 @@ function buildRevenueCharts(gran, showPrices, showHols) {
       plugins: {
         legend: { display: false },
         tooltip: { callbacks: { label: ctx => 'PKR ' + ctx.raw.toLocaleString('en-PK') }},
+        annotation: { annotations }
       },
       scales: {
         x: { grid: { display: false }, ticks: { maxTicksLimit: 24, font: { size: 9 }}},
@@ -4410,7 +4351,6 @@ function buildRevenueCharts(gran, showPrices, showHols) {
       }
     }
   });
-  try { Chart.unregister(_revAnnotPlugin); } catch(e) {}
 
   // ARPC
   const arpcData = agg.visitors.map((v,i) => v>0 ? Math.round(agg.revenues[i]/v) : null);
@@ -4499,9 +4439,6 @@ function buildActivityTrend() {
   const overlays = document.getElementById('trends-overlays')?.value || 'both';
   const annotations = buildAnnotations(keys, overlays==='both'||overlays==='prices', overlays==='both'||overlays==='holidays');
 
-  const _actAnnotPlugin = makeCanvasAnnotationPlugin(keys, overlays==='both'||overlays==='prices', overlays==='both'||overlays==='holidays');
-  Chart.register(_actAnnotPlugin);
-
   trendsCharts.activity = new Chart(
     document.getElementById('chartTrendsActivity').getContext('2d'), {
     type: 'bar',
@@ -4509,11 +4446,11 @@ function buildActivityTrend() {
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false },
-                 tooltip: { callbacks: { label: ctx => act+': '+ctx.raw.toLocaleString('en-PK') }}},
+                 tooltip: { callbacks: { label: ctx => act+': '+ctx.raw.toLocaleString('en-PK') }},
+                 annotation: { annotations }},
       scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 20, font: { size: 9 }}}, y: { grid: { color: 'rgba(0,0,0,0.05)' }}}
     }
   });
-  try { Chart.unregister(_actAnnotPlugin); } catch(e) {}
 
   // Stacked all activities
   destroyTrend('stacked');
