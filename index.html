@@ -23,32 +23,7 @@
   tryNext();
 })();
 </script>
-<script>
-// Load chartjs-plugin-annotation with fallback
-(function() {
-  var cdns = [
-    'https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js',
-    'https://unpkg.com/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js'
-  ];
-  var idx = 0;
-  function tryNext() {
-    if (idx >= cdns.length) return;
-    var s = document.createElement('script');
-    s.src = cdns[idx++];
-    s.onload = function() {
-      // Register plugin with Chart.js once loaded
-      if (window.Chart && window.ChartAnnotation) {
-        window.Chart.register(window.ChartAnnotation);
-      } else if (window.Chart && window['chartjs-plugin-annotation']) {
-        window.Chart.register(window['chartjs-plugin-annotation']);
-      }
-    };
-    s.onerror = tryNext;
-    document.head.appendChild(s);
-  }
-  tryNext();
-})();
-</script>
+
 <script>
 // Load SheetJS with fallback CDNs
 (function() {
@@ -4240,14 +4215,16 @@ function getHolidayBoxes(dates, chartType) {
 }
 
 
+function destroyTrend(id) {
+  if (trendsCharts[id]) { trendsCharts[id].destroy(); delete trendsCharts[id]; }
+}
+
 // ── Footfall charts ───────────────────────────────────────────
 function buildFootfallCharts(gran, showPrices, showHols) {
   destroyTrend('footfall'); destroyTrend('yoy'); destroyTrend('seasonal');
 
   const agg = aggregateByGran(gran);
   if (!agg.labels.length) return;
-  const annotations = buildAnnotations(agg.dates || agg.labels, showPrices, showHols);
-
   const badge = document.getElementById('trends-ftl-badge');
   if (badge) badge.textContent = agg.labels.length + ' ' + gran + ' points';
 
@@ -4329,8 +4306,6 @@ function buildRevenueCharts(gran, showPrices, showHols) {
   destroyTrend('revenue'); destroyTrend('revYoY'); destroyTrend('arpc');
   const agg = aggregateByGran(gran);
   if (!agg.labels.length) return;
-  const annotations = buildAnnotations(agg.dates || agg.labels, showPrices, showHols);
-
   trendsCharts.revenue = new Chart(
     document.getElementById('chartTrendsRevenue').getContext('2d'), {
     type: 'bar',
@@ -4343,8 +4318,7 @@ function buildRevenueCharts(gran, showPrices, showHols) {
       plugins: {
         legend: { display: false },
         tooltip: { callbacks: { label: ctx => 'PKR ' + ctx.raw.toLocaleString('en-PK') }},
-        annotation: { annotations }
-      },
+
       scales: {
         x: { grid: { display: false }, ticks: { maxTicksLimit: 24, font: { size: 9 }}},
         y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: v => v>=1e6?'PKR '+(v/1e6).toFixed(0)+'M':v>=1e3?'PKR '+(v/1e3).toFixed(0)+'K':'PKR '+v }}
@@ -4437,8 +4411,6 @@ function buildActivityTrend() {
   const data   = keys.map(k => buckets[k]);
 
   const overlays = document.getElementById('trends-overlays')?.value || 'both';
-  const annotations = buildAnnotations(keys, overlays==='both'||overlays==='prices', overlays==='both'||overlays==='holidays');
-
   trendsCharts.activity = new Chart(
     document.getElementById('chartTrendsActivity').getContext('2d'), {
     type: 'bar',
@@ -4447,7 +4419,7 @@ function buildActivityTrend() {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false },
                  tooltip: { callbacks: { label: ctx => act+': '+ctx.raw.toLocaleString('en-PK') }},
-                 annotation: { annotations }},
+},
       scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 20, font: { size: 9 }}}, y: { grid: { color: 'rgba(0,0,0,0.05)' }}}
     }
   });
