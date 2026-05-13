@@ -4299,77 +4299,127 @@ function buildPriceImpactChart() {
   const event = priceChanges[idx];
   if (!event) return;
 
-  const addDays = (d, n) => { const dt=new Date(d+'T00:00:00'); dt.setDate(dt.getDate()+n); return dt.toISOString().slice(0,10); };
+  const addDays = (d, n) => {
+    const dt = new Date(d + 'T00:00:00');
+    dt.setDate(dt.getDate() + n);
+    return dt.toISOString().slice(0, 10);
+  };
+
+  // Build daily visitor lookup — handle both embedded {r.v} and sheet {r['Total Visitors']} formats
+  const allDays = {};
+  if (trendsData) {
+    trendsData.forEach(r => {
+      const d = r.d || r['Date'] || '';
+      if (!d) return;
+      const v = Number(r.v || r['Total Visitors'] || 0);
+      if (v > 0) allDays[d] = v;
+    });
+  }
+  if (dashData) {
+    dashData.daily.forEach(r => {
+      if (r.visitors > 0) allDays[r.date] = r.visitors;
+    });
+  }
+
   const before = addDays(event.date, -30);
   const after  = addDays(event.date,  30);
 
-  // Get daily visitors in window from trendsData + dashData
-  const allDays = {};
-  trendsData.forEach(r => { const d=r['Date']||r.d||''; if(d) allDays[d]=Number(r['Total Visitors']||0); });
-  if (dashData) dashData.daily.forEach(r => { allDays[r.date]=(allDays[r.date]||0)||r.visitors; });
-
-  const labels=[], data=[], bgColors=[];
-  for (let d=before; d<=after; d=addDays(d,1)) {
+  const labels = [], data = [], bgColors = [];
+  for (let d = before; d <= after; d = addDays(d, 1)) {
     labels.push(d.slice(5));
     data.push(allDays[d] || 0);
-    if (d === event.date) bgColors.push('#c9922a');
-    else if (d < event.date) bgColors.push('rgba(201,146,42,0.35)');
-    else bgColors.push('rgba(26,58,92,0.7)');
+    if (d === event.date)      bgColors.push('#c9922a');
+    else if (d < event.date)   bgColors.push('rgba(201,146,42,0.35)');
+    else                        bgColors.push('rgba(26,58,92,0.7)');
   }
 
-  const eventIdx = labels.indexOf(event.date.slice(5));
-  const beforeAvg = data.slice(0, eventIdx).filter(v=>v>0).reduce((s,v,_,a)=>s+v/a.length,0);
-  const afterAvg  = data.slice(eventIdx+1).filter(v=>v>0).reduce((s,v,_,a)=>s+v/a.length,0);
-  const delta = beforeAvg > 0 ? ((afterAvg-beforeAvg)/beforeAvg*100).toFixed(1) : null;
+  const eventIdx  = labels.indexOf(event.date.slice(5));
+  const beforeAvg = data.slice(0, eventIdx).filter(v => v > 0)
+                        .reduce((s, v, _, a) => s + v / a.length, 0);
+  const afterAvg  = data.slice(eventIdx + 1).filter(v => v > 0)
+                        .reduce((s, v, _, a) => s + v / a.length, 0);
+  const delta = beforeAvg > 0 ? ((afterAvg - beforeAvg) / beforeAvg * 100).toFixed(1) : null;
 
   // Summary tiles
   const summary = document.getElementById('price-impact-summary');
-  if (summary) summary.innerHTML = `
-    <div class="impact-kpi"><div class="impact-kpi-label">Avg Daily Visitors (30 days before)</div><div class="impact-kpi-val">${beforeAvg>0?Math.round(beforeAvg).toLocaleString('en-PK'):'No data'}</div></div>
-    <div class="impact-kpi"><div class="impact-kpi-label">Avg Daily Visitors (30 days after)</div><div class="impact-kpi-val">${afterAvg>0?Math.round(afterAvg).toLocaleString('en-PK'):'No data'}</div></div>
-    <div class="impact-kpi" style="border-top:3px solid ${delta?parseFloat(delta)>0?'var(--green2)':'var(--red)':'var(--muted)'}">
-      <div class="impact-kpi-label">Footfall Change</div>
-      <div class="impact-kpi-val" style="color:${delta?parseFloat(delta)>0?'var(--green2)':'var(--red)':'var(--muted)'}">${delta?(parseFloat(delta)>0?'▲ ':'▼ ')+Math.abs(delta)+'%':'—'}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:4px;">${event.changes.length} prices changed</div>
-    </div>`;
+  if (summary) {
+    const deltaColor = delta ? (parseFloat(delta) > 0 ? 'var(--green2)' : 'var(--red)') : 'var(--muted)';
+    const deltaText  = delta ? (parseFloat(delta) > 0 ? '▲ ' : '▼ ') + Math.abs(delta) + '%' : '—';
+    summary.innerHTML = `
+      <div class="impact-kpi">
+        <div class="impact-kpi-label">Avg Daily Visitors (30 days before)</div>
+        <div class="impact-kpi-val">${beforeAvg > 0 ? Math.round(beforeAvg).toLocaleString('en-PK') : 'No data'}</div>
+      </div>
+      <div class="impact-kpi">
+        <div class="impact-kpi-label">Avg Daily Visitors (30 days after)</div>
+        <div class="impact-kpi-val">${afterAvg > 0 ? Math.round(afterAvg).toLocaleString('en-PK') : 'No data'}</div>
+      </div>
+      <div class="impact-kpi" style="border-top:3px solid ${deltaColor}">
+        <div class="impact-kpi-label">Footfall Change</div>
+        <div class="impact-kpi-val" style="color:${deltaColor}">${deltaText}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">${event.changes.length} price lines changed</div>
+      </div>`;
+  }
 
+  // Before/after bar chart
   trendsCharts.priceImpact = new Chart(
     document.getElementById('chartPriceImpact').getContext('2d'), {
     type: 'bar',
-    data: { labels, datasets: [{ label: 'Daily Visitors', data, backgroundColor: bgColors, borderRadius: 3 }]},
+    data: { labels, datasets: [{ label: 'Daily Visitors', data, backgroundColor: bgColors, borderRadius: 3 }] },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => 'Visitors: '+ctx.raw.toLocaleString('en-PK') }}},
-      scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 20, font: { size: 9 }}}, y: { grid: { color: 'rgba(0,0,0,0.05)' }}}
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => 'Visitors: ' + ctx.raw.toLocaleString('en-PK') }}
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 20, font: { size: 9 } } },
+        y: { grid: { color: 'rgba(0,0,0,0.05)' } }
+      }
     }
   });
 
-  // All price change deltas
+  // Build delta chart deferred so main chart renders first
+  setTimeout(() => buildPriceDeltaChart(allDays, addDays), 50);
+}
+
+function buildPriceDeltaChart(allDays, addDays) {
+  destroyTrend('priceDeltas');
+
   const deltaData = priceChanges.map(pc => {
-    const evDate = pc.date;
-    const bef = addDays(evDate,-30), aft = addDays(evDate,30);
     const befVals = [], aftVals = [];
-    for (let d=bef; d<evDate; d=addDays(d,1)) { if(allDays[d]>0) befVals.push(allDays[d]); }
-    for (let d=addDays(evDate,1); d<=aft; d=addDays(d,1)) { if(allDays[d]>0) aftVals.push(allDays[d]); }
-    const ba = befVals.length>0?befVals.reduce((s,v)=>s+v,0)/befVals.length:0;
-    const aa = aftVals.length>0?aftVals.reduce((s,v)=>s+v,0)/aftVals.length:0;
-    return ba>0&&aa>0 ? Math.round((aa-ba)/ba*100) : null;
+    const bef = addDays(pc.date, -30);
+    const aft = addDays(pc.date,  30);
+    for (let d = bef; d < pc.date; d = addDays(d, 1)) { if (allDays[d] > 0) befVals.push(allDays[d]); }
+    for (let d = addDays(pc.date, 1); d <= aft; d = addDays(d, 1)) { if (allDays[d] > 0) aftVals.push(allDays[d]); }
+    const ba = befVals.length > 0 ? befVals.reduce((s, v) => s + v, 0) / befVals.length : 0;
+    const aa = aftVals.length > 0 ? aftVals.reduce((s, v) => s + v, 0) / aftVals.length : 0;
+    return (ba > 0 && aa > 0) ? Math.round((aa - ba) / ba * 100) : null;
   });
 
-  trendsCharts.priceDeltas = new Chart(
-    document.getElementById('chartPriceDeltas').getContext('2d'), {
+  const canvas = document.getElementById('chartPriceDeltas');
+  if (!canvas) return;
+
+  trendsCharts.priceDeltas = new Chart(canvas.getContext('2d'), {
     type: 'bar',
-    data: { labels: priceChanges.map(pc=>pc.date.slice(2)), datasets: [{ label: 'Footfall delta %',
-      data: deltaData,
-      backgroundColor: deltaData.map(v => v===null?'#ccc':v>0?'rgba(45,122,78,0.7)':'rgba(192,57,43,0.7)'),
-      borderRadius: 4
-    }]},
+    data: {
+      labels: priceChanges.map(pc => pc.date.slice(2)),
+      datasets: [{
+        label: 'Footfall delta %',
+        data: deltaData,
+        backgroundColor: deltaData.map(v => v === null ? '#ccc' : v > 0 ? 'rgba(45,122,78,0.7)' : 'rgba(192,57,43,0.7)'),
+        borderRadius: 4
+      }]
+    },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.raw===null?'No data':(ctx.raw>0?'+':'')+ctx.raw+'% footfall change' }}},
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ctx.raw === null ? 'No data' : (ctx.raw > 0 ? '+' : '') + ctx.raw + '% footfall change' } }
+      },
       scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 9 }}},
-        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: v => v+'%' }}
+        x: { grid: { display: false }, ticks: { font: { size: 9 } } },
+        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: v => v + '%' } }
       }
     }
   });
