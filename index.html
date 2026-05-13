@@ -4216,19 +4216,37 @@ function buildRevenueCharts(gran, showPrices, showHols) {
 // ── Activity trend ────────────────────────────────────────────
 function populateActivitySelect() {
   const sel = document.getElementById('trends-activity-select');
-  if (!sel || sel.options.length > 1) return;
+  if (!sel) return;
+  sel.innerHTML = '';
   const acts = getAvailableActivities();
   acts.forEach(a => { const o=document.createElement('option'); o.value=a; o.textContent=a; sel.appendChild(o); });
-  if (sel.options.length) { sel.value = sel.options[0].value; trendsActSelect = sel.options[0].value; }
+  if (acts.length) { sel.value = acts[0]; trendsActSelect = acts[0]; }
 }
 
 function getAvailableActivities() {
-  if (!trendsData || !trendsData.length) return ['Chairlift','Zipline','Giant Swing'];
+  // Embedded data: activities in r.t = {Chairlift: 563, Zipline: 8, ...}
+  // Sheet data: activities in r['Chairlift Count'] etc
   const actSet = new Set();
-  trendsData.forEach(r => {
-    Object.keys(r).forEach(k => { if (k.endsWith(' Count')) actSet.add(k.replace(' Count','')); });
-  });
+  if (EMBEDDED_SALES && EMBEDDED_SALES.length) {
+    EMBEDDED_SALES.forEach(r => {
+      if (r.t) Object.keys(r.t).forEach(k => actSet.add(k));
+    });
+  }
+  if (trendsData) {
+    trendsData.forEach(r => {
+      if (r.t) Object.keys(r.t).forEach(k => actSet.add(k));
+      Object.keys(r).forEach(k => { if (k.endsWith(' Count')) actSet.add(k.replace(' Count','')); });
+    });
+  }
+  if (actSet.size === 0) return ['Chairlift','Zipline','Giant Swing','Tubby','Archery'];
   return [...actSet].sort();
+}
+
+// Helper: get activity count from a trends data row (handles both formats)
+function getTrendsActivityCount(r, actName) {
+  if (r.t && r.t[actName] !== undefined) return Number(r.t[actName]) || 0;
+  if (r[actName + ' Count'] !== undefined) return Number(r[actName + ' Count']) || 0;
+  return 0;
 }
 
 function buildActivityTrend() {
@@ -4239,14 +4257,16 @@ function buildActivityTrend() {
 
   const gran = 'monthly';
   const buckets = {};
-  trendsData.forEach(r => {
-    const d = r['Date'] || r.d || '';
-    if (!d) return;
-    const m = d.slice(0,7);
-    const v = Number(r[(act + ' Count')] || 0);
-    if (!buckets[m]) buckets[m] = 0;
-    buckets[m] += v;
-  });
+  if (trendsData) {
+    trendsData.forEach(r => {
+      const d = r.d || r['Date'] || '';
+      if (!d) return;
+      const m = d.slice(0,7);
+      const v = getTrendsActivityCount(r, act);
+      if (!buckets[m]) buckets[m] = 0;
+      buckets[m] += v;
+    });
+  }
   if (dashData) dashData.daily.forEach(r => {
     const m = r.date.slice(0,7);
     const v = r.activities[act] || 0;
@@ -4279,12 +4299,17 @@ function buildActivityTrend() {
   destroyTrend('stacked');
   const stackActs = getAvailableActivities().slice(0,8);
   const stackBuckets = {};
-  trendsData.forEach(r => {
-    const d = r['Date']||r.d||''; if(!d) return;
-    const m = d.slice(0,7);
-    if(!stackBuckets[m]) stackBuckets[m]={};
-    stackActs.forEach(a => { const v=Number(r[a+' Count']||0); stackBuckets[m][a]=(stackBuckets[m][a]||0)+v; });
-  });
+  if (trendsData) {
+    trendsData.forEach(r => {
+      const d = r.d||r['Date']||''; if(!d) return;
+      const m = d.slice(0,7);
+      if(!stackBuckets[m]) stackBuckets[m]={};
+      stackActs.forEach(a => {
+        const v = getTrendsActivityCount(r, a);
+        stackBuckets[m][a] = (stackBuckets[m][a]||0) + v;
+      });
+    });
+  }
   const stackKeys = Object.keys(stackBuckets).sort();
   const stackLabels = stackKeys.map(k => mNames[parseInt(k.slice(5))-1]+' '+k.slice(2,4));
   const colors = ['#0f2340','#1a3a5c','#c9922a','#e8b04a','#2d7a4e','#3daa6e','#8e4dba','#e05c3a'];
