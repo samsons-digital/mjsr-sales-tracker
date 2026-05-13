@@ -4300,7 +4300,9 @@ function buildFootfallCharts(gran, showPrices, showHols) {
   if (!agg.labels.length) return;
   const annotations = buildAnnotations(agg.dates || agg.labels, showPrices, showHols);
 
-  const annotationPlugin = makeCanvasAnnotationPlugin(agg.dates || agg.labels, showPrices, showHols);
+  // annotation plugin registered globally below
+  const _ftlAnnotPlugin = makeCanvasAnnotationPlugin(agg.dates || agg.labels, showPrices, showHols);
+  Chart.register(_ftlAnnotPlugin);
 
   const badge = document.getElementById('trends-ftl-badge');
   if (badge) badge.textContent = agg.labels.length + ' ' + gran + ' points';
@@ -4312,7 +4314,6 @@ function buildFootfallCharts(gran, showPrices, showHols) {
       label: 'Visitors', data: agg.visitors,
       backgroundColor: 'rgba(26,58,92,0.7)', borderRadius: 2
     }]},
-    plugins: [annotationPlugin],
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
@@ -4325,6 +4326,7 @@ function buildFootfallCharts(gran, showPrices, showHols) {
       }
     }
   });
+  try { Chart.unregister(_ftlAnnotPlugin); } catch(e) {}
 
   // YoY
   const mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -4386,7 +4388,8 @@ function buildRevenueCharts(gran, showPrices, showHols) {
   if (!agg.labels.length) return;
   const annotations = buildAnnotations(agg.dates || agg.labels, showPrices, showHols);
 
-  const revAnnotationPlugin = makeCanvasAnnotationPlugin(agg.dates || agg.labels, showPrices, showHols);
+  const _revAnnotPlugin = makeCanvasAnnotationPlugin(agg.dates || agg.labels, showPrices, showHols);
+  Chart.register(_revAnnotPlugin);
 
   trendsCharts.revenue = new Chart(
     document.getElementById('chartTrendsRevenue').getContext('2d'), {
@@ -4395,7 +4398,6 @@ function buildRevenueCharts(gran, showPrices, showHols) {
       label: 'Revenue (PKR)', data: agg.revenues,
       backgroundColor: 'rgba(201,146,42,0.7)', borderRadius: 2
     }]},
-    plugins: [revAnnotationPlugin],
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
@@ -4408,6 +4410,7 @@ function buildRevenueCharts(gran, showPrices, showHols) {
       }
     }
   });
+  try { Chart.unregister(_revAnnotPlugin); } catch(e) {}
 
   // ARPC
   const arpcData = agg.visitors.map((v,i) => v>0 ? Math.round(agg.revenues[i]/v) : null);
@@ -4496,13 +4499,13 @@ function buildActivityTrend() {
   const overlays = document.getElementById('trends-overlays')?.value || 'both';
   const annotations = buildAnnotations(keys, overlays==='both'||overlays==='prices', overlays==='both'||overlays==='holidays');
 
-  const actAnnotationPlugin = makeCanvasAnnotationPlugin(keys, overlays==='both'||overlays==='prices', overlays==='both'||overlays==='holidays');
+  const _actAnnotPlugin = makeCanvasAnnotationPlugin(keys, overlays==='both'||overlays==='prices', overlays==='both'||overlays==='holidays');
+  Chart.register(_actAnnotPlugin);
 
   trendsCharts.activity = new Chart(
     document.getElementById('chartTrendsActivity').getContext('2d'), {
     type: 'bar',
     data: { labels, datasets: [{ label: act + ' tickets', data, backgroundColor: 'rgba(26,58,92,0.7)', borderRadius: 3 }]},
-    plugins: [actAnnotationPlugin],
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false },
@@ -4510,6 +4513,7 @@ function buildActivityTrend() {
       scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 20, font: { size: 9 }}}, y: { grid: { color: 'rgba(0,0,0,0.05)' }}}
     }
   });
+  try { Chart.unregister(_actAnnotPlugin); } catch(e) {}
 
   // Stacked all activities
   destroyTrend('stacked');
