@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MJSR Activity Sales Tracker</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -4331,22 +4332,22 @@ async function handleSalesUpload(input) {
   const status = document.getElementById('upload-sales-status');
   status.textContent = 'Reading file...';
 
-  // Read Excel file using SheetJS
+  if (!window.XLSX) { status.textContent = 'Error: SheetJS library not loaded. Please refresh the page.'; return; }
+
   const reader = new FileReader();
   reader.onload = async (e) => {
     try {
-      const XLSX = await import('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js').catch(() => window.XLSX);
-      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      const wb = window.XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
       status.textContent = 'Parsing ' + wb.SheetNames.length + ' tabs...';
 
-      const rows = parseExcelSalesFile(wb, XLSX);
-      if (!rows.length) { status.textContent = 'No data found in file.'; return; }
+      const rows = parseExcelSalesFile(wb);
+      if (!rows.length) { status.textContent = 'No data found in file. Check the tab names contain "ticket" or "sales".'; return; }
 
       status.textContent = `Parsed ${rows.length} days. Uploading to sheet...`;
       const res = await gasPost({ action: 'UPLOAD_DAILY_SALES', pin: '1234', rows });
       if (res.success) {
         status.textContent = `✓ ${res.inserted} days uploaded, ${res.skipped} skipped.`;
-        trendsData = null; // force reload
+        trendsData = null;
         await fetchTrendsData();
         buildTrendCharts();
         updateTrendsStatus();
@@ -4355,54 +4356,91 @@ async function handleSalesUpload(input) {
       }
     } catch(err) {
       status.textContent = 'Parse error: ' + err.message;
+      console.error(err);
     }
   };
   reader.readAsArrayBuffer(file);
 }
 
-function parseExcelSalesFile(wb, XLSX) {
-  // Auto-detect which fiscal year format and parse
+function parseExcelSalesFile(wb) {
+  const XLSX = window.XLSX;
   const rows = [];
-  // Try to find "No of tickets" tab
-  const tixSheet = wb.SheetNames.find(n => n.toLowerCase().includes('ticket') || n.toLowerCase().includes('no.'));
-  const revSheet  = wb.SheetNames.find(n => n.toLowerCase().includes('revenue') || n.toLowerCase().includes('sales'));
-  if (!tixSheet && !revSheet) return [];
 
-  const parseSheet = (sheetName) => {
-    const ws = wb.Sheets[sheetName];
-    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: false });
-    // Find header row (has Date of sale)
-    let hRowIdx = data.findIndex(r => r && r.some(v => String(v||'').includes('Date of sale')));
-    if (hRowIdx < 0) return [];
-    const hdrs = data[hRowIdx];
-    // Find date column
-    const dateCol = hdrs.findIndex(h => String(h||'').includes('Date'));
-    if (dateCol < 0) return [];
-    const result = [];
-    for (let i = hRowIdx+1; i < data.length; i++) {
-      const row = data[i];
-      const rawDate = row[dateCol];
-      if (!rawDate) continue;
-      const dateStr = rawDate instanceof Date
-        ? rawDate.toISOString().slice(0,10)
-        : String(rawDate).slice(0,10);
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) continue;
-      const acts = {}, revs = {};
-      hdrs.forEach((h, j) => {
-        if (j === dateCol || !h) return;
-        const canon = clientCanonical(String(h));
-        if (!canon) return;
-        const v = parseFloat(String(row[j]||'0').replace(/,/g,'')) || 0;
-        if (v > 0) acts[canon] = (acts[canon]||0) + v;
-      });
-      const total = Object.values(acts).reduce((s,v)=>s+v, 0);
-      if (total > 0) result.push({ d: dateStr, t: acts, r: revs, v: total, x: 0 });
+  // Find the best tabs — prefer ticket/count tab over revenue tab
+  const tixSheet = wb.SheetNames.find(n => {
+    const l = n.toLowerCase();
+    return l.includes('no of ticket') || l.includes('no. of ticket') || l.includes('tickets');
+  });
+  const revSheet = wb.SheetNames.find(n => {
+    const l = n.toLowerCase();
+    return l.includes('revenue') || l.includes('sales -') || (l.includes('sales') && !l.includes('ticket'));
+  });
+
+  const sheetToUse = tixSheet || revSheet;
+  if (!sheetToUse) {
+    console.warn('No suitable tab found. Available:', wb.SheetNames);
+    return [];
+  }
+
+  console.log('Using tab:', sheetToUse);
+  const ws = wb.Sheets[sheetToUse];
+  const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
+
+  // Find header row — contains "Date of sale" or "Date"
+  let hRowIdx = data.findIndex(r => r && r.some(v => v && String(v).toLowerCase().includes('date')));
+  if (hRowIdx < 0) return [];
+
+  const hdrs = data[hRowIdx];
+  const dateCol = hdrs.findIndex(h => h && String(h).toLowerCase().includes('date'));
+  if (dateCol < 0) return [];
+
+  // Skip known non-activity columns (total, grand total etc)
+  const skipCols = new Set();
+  hdrs.forEach((h,i) => {
+    if (!h) return;
+    const hl = String(h).toLowerCase();
+    if (hl.includes('total') || hl.includes('grand') || hl.includes('gv') || hl.includes('samsons inn')) {
+      skipCols.add(i);
     }
-    return result;
-  };
+  });
 
-  const parsed = tixSheet ? parseSheet(tixSheet) : parseSheet(revSheet);
-  return parsed;
+  const seenDates = new Set();
+
+  for (let i = hRowIdx + 1; i < data.length; i++) {
+    const row = data[i];
+    if (!row || !row[dateCol]) continue;
+
+    // Parse date — handle Excel serial numbers and Date objects
+    let dateStr = '';
+    const rawDate = row[dateCol];
+    if (rawDate instanceof Date) {
+      dateStr = rawDate.toISOString().slice(0, 10);
+    } else if (typeof rawDate === 'number' && rawDate > 40000) {
+      // Excel serial date
+      const d = new Date(Math.round((rawDate - 25569) * 86400 * 1000));
+      dateStr = d.toISOString().slice(0, 10);
+    } else if (typeof rawDate === 'string') {
+      dateStr = rawDate.slice(0, 10);
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) continue;
+    if (seenDates.has(dateStr)) continue; // skip summary rows
+    seenDates.add(dateStr);
+
+    const acts = {};
+    hdrs.forEach((h, j) => {
+      if (j === dateCol || !h || skipCols.has(j)) return;
+      const canon = clientCanonical(String(h));
+      if (!canon) return;
+      const v = typeof row[j] === 'number' ? row[j] : parseFloat(String(row[j] || '').replace(/,/g, '')) || 0;
+      if (v > 0) acts[canon] = (acts[canon] || 0) + v;
+    });
+
+    const total = Object.values(acts).reduce((s, v) => s + v, 0);
+    if (total > 0) rows.push({ d: dateStr, t: acts, r: {}, v: total, x: 0 });
+  }
+
+  return rows;
 }
 
 function clientCanonical(col) {
