@@ -4360,7 +4360,7 @@ async function handleSalesUpload(input) {
       status.textContent = 'Parsing ' + wb.SheetNames.length + ' tabs...';
 
       const rows = parseExcelSalesFile(wb);
-      if (!rows.length) { status.textContent = 'No data found in file. Check the tab names contain "ticket" or "sales".'; return; }
+      if (!rows.length) { status.textContent = `No data parsed from "${file.name}". Tabs found: ${wb.SheetNames.join(', ')}. Check browser console (F12) for details.`; return; }
 
       status.textContent = `Parsed ${rows.length} days. Uploading to sheet...`;
       const res = await gasPost({ action: 'UPLOAD_DAILY_SALES', pin: '1234', rows });
@@ -4385,22 +4385,34 @@ function parseExcelSalesFile(wb) {
   const XLSX = window.XLSX;
   const rows = [];
 
-  // Find the best tabs — prefer ticket/count tab over revenue tab
+  // Find the best tab — check all known patterns from actual files
   const tixSheet = wb.SheetNames.find(n => {
-    const l = n.toLowerCase();
-    return l.includes('no of ticket') || l.includes('no. of ticket') || l.includes('tickets');
+    const l = n.toLowerCase().trim();
+    return l.includes('no of ticket') || l.includes('no. of ticket') ||
+           l.includes('no.of ticket') || l === 'tickets' ||
+           l.includes('number of ticket');
   });
   const revSheet = wb.SheetNames.find(n => {
-    const l = n.toLowerCase();
-    return l.includes('revenue') || l.includes('sales -') || (l.includes('sales') && !l.includes('ticket'));
+    const l = n.toLowerCase().trim();
+    return l === 'revenue' || l.includes('revenue') ||
+           l.includes('sales -') || l.includes('sales-') ||
+           (l.startsWith('sales') && !l.includes('ticket'));
   });
 
-  const sheetToUse = tixSheet || revSheet;
+  const sheetToUse = tixSheet || revSheet || wb.SheetNames.find(n => {
+    // Last resort: any sheet that isn't summary/commission/restaurant/ski shop
+    const l = n.toLowerCase();
+    return !l.includes('summary') && !l.includes('commission') &&
+           !l.includes('restaurant') && !l.includes('ski shop') &&
+           !l.includes('increased') && !l.includes('breakup');
+  });
+
   if (!sheetToUse) {
     console.warn('No suitable tab found. Available:', wb.SheetNames);
     return [];
   }
 
+  console.log('Tabs available:', wb.SheetNames);
   console.log('Using tab:', sheetToUse);
   const ws = wb.Sheets[sheetToUse];
   const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
@@ -4460,7 +4472,7 @@ function parseExcelSalesFile(wb) {
   }
 
   return rows;
-}
+}  // end parseExcelSalesFile
 
 function clientCanonical(col) {
   const c = col.toLowerCase().trim();
